@@ -365,7 +365,7 @@ const T = {
   cancel: { fa: 'لغو', en: 'Cancel' },
   fetchDetail: { fa: 'دریافت آخرین نسخه از itsyebekhe/nahan', en: 'Fetching latest version from itsyebekhe/nahan' },
   d1Detail: { fa: 'ساخت پایگاه داده SQLite در لبه Cloudflare', en: 'Creating SQLite database on Cloudflare edge' },
-  deployDetail: { fa: 'آپلود کد و اتصال D1 binding', en: 'Uploading code and connecting D1 binding' },
+  deployDetail: { fa: 'ایجاد Worker، آپلود کد و استقرار نسخه', en: 'Creating Worker, uploading code and deploying version' },
   enableUrlDetail: { fa: 'ایجاد نسخه و استقرار صریح با فعال‌سازی workers.dev', en: 'Creating version and explicit deployment with workers.dev enabled' },
   verifyDetail: { fa: 'بررسی دسترسی به Worker مستقر شده', en: 'Checking accessibility of deployed Worker' },
 
@@ -522,11 +522,19 @@ async function cfFetch(path, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
   try {
+    console.log(`[CF API] ${method} ${path}`);
+    if (options.body instanceof FormData) {
+      console.log(`[CF API] Body: FormData (multipart)`);
+    } else if (options.body) {
+      console.log(`[CF API] Body (first 500 chars): ${options.body.substring(0, 500)}`);
+    }
     const res = await fetch(url, { ...options, headers });
     const json = await res.json();
+    console.log(`[CF API] ${method} ${path} → HTTP ${res.status}, success: ${json.success}`);
     if (!json.success) {
       const detail = json.errors?.map(e => e.message || e.code || JSON.stringify(e)).join('; ') || '';
-      console.error(`[CF API] ${method} ${path} → ${res.status}`, json);
+      console.error(`[CF API] ${method} ${path} → ERRORS:`, JSON.stringify(json.errors));
+      console.error(`[CF API] ${method} ${path} → MESSAGES:`, JSON.stringify(json.messages));
       return { success: false, errors: [{ message: detail || `${t('errCfApi')} (HTTP ${res.status})` }], _raw: json, _status: res.status };
     }
     return json;
@@ -551,11 +559,26 @@ async function cfFetchViaProxy(proxy, path, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
   try {
+    console.log(`[CF Proxy] ${method} ${url} (target: ${path})`);
+    if (options.body instanceof FormData) {
+      console.log(`[CF Proxy] Body: FormData (multipart)`);
+    } else if (options.body) {
+      console.log(`[CF Proxy] Body (first 500 chars): ${options.body.substring(0, 500)}`);
+    }
     const res = await fetch(url, { ...options, headers });
-    const json = await res.json();
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (parseErr) {
+      console.error(`[CF Proxy] ${method} ${path} → Response not JSON:`, text.substring(0, 500));
+      return { success: false, errors: [{ message: `Proxy returned non-JSON response (HTTP ${res.status}): ${text.substring(0, 200)}` }], _raw: text, _status: res.status };
+    }
+    console.log(`[CF Proxy] ${method} ${path} → HTTP ${res.status}, success: ${json.success}`);
     if (!json.success) {
       const detail = json.errors?.map(e => e.message || e.code || JSON.stringify(e)).join('; ') || '';
-      console.error(`[CF Proxy] ${method} ${path} → ${res.status}`, json);
+      console.error(`[CF Proxy] ${method} ${path} → ERRORS:`, JSON.stringify(json.errors));
+      console.error(`[CF Proxy] ${method} ${path} → MESSAGES:`, JSON.stringify(json.messages));
       return { success: false, errors: [{ message: detail || `${t('errCfApi')} (HTTP ${res.status})` }], _raw: json };
     }
     return json;
@@ -642,6 +665,10 @@ async function fetchWorkerCode() {
         continue;
       }
 
+      console.log(`[fetch] Downloaded _worker.js size: ${code.length} bytes (${(code.length / 1024).toFixed(1)} KB)`);
+      console.log(`[fetch] First 200 chars of _worker.js:\n${code.substring(0, 200)}`);
+      console.log(`[fetch] Last 200 chars of _worker.js:\n${code.substring(code.length - 200)}`);
+
       const verMatch = code.match(/const\s+CURRENT_VERSION\s*=\s*["']([^"']+)["']/);
       state.workerVersion = verMatch ? verMatch[1] : '';
       state.workerCode = code;
@@ -687,82 +714,190 @@ async function findExistingD1() {
 }
 
 async function deployWorker() {
-  // Try Beta API first: create Worker with workers.dev explicitly enabled
-  const createRes = await cfFetch(
-    `/accounts/${state.accountId}/workers/workers`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ name: state.workerName, subdomain: { enabled: true } }),
+  // Use the Beta API 3-step deploy for reliable workers.dev URL enablement.
+  // 1. POST /workers/workers — create Worker with subdomain enabled
+  // 2. POST /workers/workers/{id}/versions — upload code (base64 modules)
+  // 3. POST /workers/scripts/{name}/deployments — deploy version to 100% traffic
+  // Falls back to stable multipart PUT if Beta version upload fails (first-upload restriction).
+
+  console.log('[Deploy] === Starting deployment (Beta API 3-step) ===');
+  console.log('[Deploy] Worker name:', state.workerName);
+  console.log('[Deploy] DB ID:', state.dbId);
+  console.log('[Deploy] Worker code length:', state.workerCode?.length, 'bytes');
+
+  // Step 1: Create Worker resource with workers.dev enabled
+  const createResult = await deployBetaCreateWorker();
+  if (!createResult.ok) {
+    console.error('[Deploy] Create Worker failed:', createResult.msg);
+    return createResult;
+  }
+  console.log('[Deploy] ✓ Worker resource ready (id:', createResult.workerId + ')');
+
+  // Step 2: Upload version via Beta API
+  const versionResult = await deployBetaUploadVersion(createResult.workerId);
+  if (versionResult.ok) {
+    console.log('[Deploy] ✓ Version uploaded (id:', versionResult.versionId + ')');
+
+    // Step 3: Deploy version to 100% traffic
+    const deployResult = await deployBetaCreateDeployment(versionResult.versionId);
+    if (deployResult.ok) {
+      console.log('[Deploy] ✓ Deployment created — Worker is live');
+      return { ok: true, via: 'beta-api' };
     }
-  );
-
-  if (createRes.success) {
-    const workerId = createRes.result?.id;
-    console.log('[Deploy] Worker created via Beta API:', workerId);
-
-    // Upload first version
-    const scriptBase64 = btoa(unescape(encodeURIComponent(state.workerCode)));
-    const versionRes = await cfFetch(
-      `/accounts/${state.accountId}/workers/workers/${workerId}/versions`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          main_module: '_worker.js',
-          compatibility_date: '2024-03-01',
-          compatibility_flags: ['allow_eval_during_startup'],
-          bindings: [{ name: 'IOT_DB', type: 'd1', id: state.dbId }],
-          modules: [{ name: '_worker.js', content_type: 'application/javascript+module', content_base64: scriptBase64 }],
-        }),
-      }
-    );
-
-    if (!versionRes.success) {
-      const errMsg = versionRes.errors?.[0]?.message || '';
-      console.warn('[Deploy] Beta version upload failed, falling back to stable API:', errMsg);
-      return await deployWorkerStable();
-    }
-
-    const versionId = versionRes.result?.id;
-    console.log('[Deploy] Version created:', versionId);
-
-    // Create explicit deployment
-    const deployRes = await cfFetch(
-      `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/deployments`,
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          strategy: 'percentage',
-          versions: [{ percentage: 100, version_id: versionId }],
-        }),
-      }
-    );
-
-    if (!deployRes.success) {
-      const errMsg = deployRes.errors?.[0]?.message || '';
-      console.warn('[Deploy] Beta deployment failed, falling back to stable API:', errMsg);
-      return await deployWorkerStable();
-    }
-
-    console.log('[Deploy] Deployment created:', deployRes.result?.id);
-    return { ok: true, via: 'beta-api' };
+    console.warn('[Deploy] Deployment creation failed:', deployResult.msg);
+    return deployResult;
   }
 
-  // Worker already exists — fall back to stable multipart upload
-  const errMsg = createRes.errors?.[0]?.message || '';
-  if (errMsg.includes('already exists') || errMsg.includes('already_exists') || errMsg.includes('name is already taken') || createRes._status === 409) {
-    console.log('[Deploy] Worker already exists, using stable API');
-    return await deployWorkerStable();
+  // Beta version upload failed — likely first-upload restriction.
+  // Fall back to stable multipart PUT (works for code upload even on fresh Workers).
+  console.warn('[Deploy] Beta version upload failed:', versionResult.msg);
+  console.log('[Deploy] Falling back to stable multipart PUT...');
+
+  const stableResult = await deployWorkerStable();
+  if (stableResult.ok) {
+    console.log('[Deploy] ✓ Stable upload succeeded (Worker created via Beta, code via stable)');
+    return { ok: true, via: 'beta+stable' };
+  }
+  return stableResult;
+}
+
+async function deployBetaCreateWorker() {
+  console.log('[Beta-Create] Creating Worker with subdomain enabled...');
+  const path = `/accounts/${state.accountId}/workers/workers`;
+  const body = {
+    name: state.workerName,
+    subdomain: { enabled: true },
+  };
+
+  const r = await cfFetch(path, { method: 'POST', body: JSON.stringify(body) });
+  console.log('[Beta-Create] success:', r.success, 'HTTP:', r._status);
+
+  if (r.success) {
+    console.log('[Beta-Create] ✓ Worker created. id:', r.result?.id);
+    return { ok: true, workerId: r.result?.id };
   }
 
-  // Other creation error
-  return { ok: false, msg: errMsg || t('errDeploy') };
+  const errMsg = r.errors?.[0]?.message || '';
+  const errCode = r.errors?.[0]?.code;
+
+  // 409 = Worker already exists — that's OK, get its ID from settings
+  if (r._status === 409 || errCode === 10006 || errMsg.includes('already exists') || errMsg.includes('name is already taken')) {
+    console.log('[Beta-Create] Worker already exists — fetching ID from settings...');
+    const settingsRes = await cfFetch(`/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/settings`);
+    if (settingsRes.success) {
+      const workerId = settingsRes.result?.id || state.workerName;
+      console.log('[Beta-Create] ✓ Using existing Worker. id:', workerId);
+      return { ok: true, workerId };
+    }
+    // If settings fetch fails, use the worker name as ID
+    console.log('[Beta-Create] Settings fetch failed, using worker name as ID');
+    return { ok: true, workerId: state.workerName };
+  }
+
+  console.error('[Beta-Create] FAILED:', errMsg);
+  return { ok: false, msg: errMsg || 'Failed to create Worker' };
+}
+
+async function deployBetaUploadVersion(workerId) {
+  console.log('[Beta-Version] Uploading version for worker:', workerId);
+
+  // Use a fixed entrypoint filename — must match main_module in metadata.
+  // Wrangler uses the source filename (e.g. worker.js); we follow the same convention.
+  const MODULE_FILENAME = 'worker.js';
+
+  // Base64-encode the worker code (handles Unicode correctly)
+  const codeBytes = new TextEncoder().encode(state.workerCode);
+  let binary = '';
+  for (let i = 0; i < codeBytes.byteLength; i++) {
+    binary += String.fromCharCode(codeBytes[i]);
+  }
+  const codeBase64 = btoa(binary);
+
+  console.log('[Beta-Version] Module filename:', MODULE_FILENAME);
+  console.log('[Beta-Version] Code size:', state.workerCode.length, 'bytes');
+  console.log('[Beta-Version] Base64 size:', codeBase64.length, 'bytes');
+
+  const path = `/accounts/${state.accountId}/workers/workers/${encodeURIComponent(workerId)}/versions`;
+  const body = {
+    main_module: MODULE_FILENAME,
+    compatibility_date: '2024-09-22',
+    compatibility_flags: ['nodejs_compat'],
+    bindings: [
+      {
+        type: 'd1',
+        name: 'IOT_DB',
+        id: state.dbId,
+      }
+    ],
+    modules: [
+      {
+        name: MODULE_FILENAME,
+        content_type: 'application/javascript+module',
+        content_base64: codeBase64,
+      }
+    ],
+  };
+
+  const r = await cfFetch(path, { method: 'POST', body: JSON.stringify(body) });
+  console.log('[Beta-Version] success:', r.success, 'HTTP:', r._status);
+  if (r.result) {
+    console.log('[Beta-Version] result.id:', r.result?.id);
+  }
+  if (!r.success) {
+    console.error('[Beta-Version] ERRORS:', JSON.stringify(r.errors));
+    console.error('[Beta-Version] MESSAGES:', JSON.stringify(r.messages));
+  }
+
+  if (r.success && r.result?.id) {
+    return { ok: true, versionId: r.result.id };
+  }
+
+  const errMsg = r.errors?.[0]?.message || '';
+  return { ok: false, msg: errMsg };
+}
+
+async function deployBetaCreateDeployment(versionId) {
+  console.log('[Beta-Deploy] Creating deployment for version:', versionId);
+
+  const path = `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/deployments`;
+  const body = {
+    strategy: 'percentage',
+    versions: [
+      { percentage: 100, version_id: versionId }
+    ],
+  };
+
+  const r = await cfFetch(path, { method: 'POST', body: JSON.stringify(body) });
+  console.log('[Beta-Deploy] success:', r.success, 'HTTP:', r._status);
+  if (r.result) {
+    console.log('[Beta-Deploy] result.id:', r.result?.id);
+  }
+  if (!r.success) {
+    console.error('[Beta-Deploy] ERRORS:', JSON.stringify(r.errors));
+    console.error('[Beta-Deploy] MESSAGES:', JSON.stringify(r.messages));
+  }
+
+  if (r.success) {
+    return { ok: true };
+  }
+
+  const errMsg = r.errors?.[0]?.message || '';
+  return { ok: false, msg: errMsg || 'Failed to create deployment' };
 }
 
 async function deployWorkerStable() {
+  // Stable multipart PUT API — fallback when Beta version upload fails.
+  // Uploads code and creates a deployment in a single request.
+
+  console.log('[Stable] === Multipart PUT fallback ===');
+
+  // Use fixed 'worker.js' entrypoint — must match the form part name below.
+  const MODULE_FILENAME = 'worker.js';
+
   const metadata = {
-    main_module: '_worker.js',
-    compatibility_date: '2024-03-01',
-    compatibility_flags: ['allow_eval_during_startup'],
+    main_module: MODULE_FILENAME,
+    compatibility_date: '2024-09-22',
+    compatibility_flags: ['nodejs_compat'],
     bindings: [
       {
         name: 'IOT_DB',
@@ -772,24 +907,35 @@ async function deployWorkerStable() {
     ],
   };
 
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('_worker.js', new Blob([state.workerCode], { type: 'application/javascript+module' }), '_worker.js');
+  console.log('[Stable] Metadata:', JSON.stringify(metadata, null, 2));
+  console.log('[Stable] Code size:', state.workerCode?.length, 'bytes');
 
-  const r = await cfFetch(
-    `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}`,
-    { method: 'PUT', body: form }
-  );
+  const form = new FormData();
+  const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+  const scriptBlob = new Blob([state.workerCode], { type: 'application/javascript+module' });
+
+  form.append('metadata', metadataBlob);
+  // Part name MUST match main_module in metadata above.
+  form.append(MODULE_FILENAME, scriptBlob, MODULE_FILENAME);
+
+  const path = `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}`;
+  const r = await cfFetch(path, { method: 'PUT', body: form });
+
+  console.log('[Stable] success:', r.success, 'HTTP:', r._status);
+  if (r.result) {
+    console.log('[Stable] handlers:', JSON.stringify(r.result?.handlers));
+    console.log('[Stable] has_modules:', r.result?.has_modules);
+  }
+  if (!r.success) {
+    console.error('[Stable] ERRORS:', JSON.stringify(r.errors));
+  }
 
   if (r.success) {
-    console.log('[Deploy] Stable API upload succeeded:', r.result?.id);
-    return { ok: true, via: 'stable-api' };
+    console.log('[Stable] ✓ Upload succeeded');
+    return { ok: true };
   }
 
   const errMsg = r.errors?.[0]?.message || '';
-  if (errMsg.includes('unknown type') || errMsg.includes('binding')) {
-    return { ok: false, msg: `${t('errDeploy')}: ${errMsg}\n\nBinding sent: ${JSON.stringify(metadata.bindings[0])}` };
-  }
   return { ok: false, msg: errMsg || t('errDeploy') };
 }
 
@@ -803,6 +949,13 @@ async function verifyBindings() {
 }
 
 async function enableWorkersDevUrl() {
+  // Enable the workers.dev route for this Worker, then construct the URL.
+  // The stable PUT API does NOT auto-enable this route for fresh Workers.
+  // We must call the subdomain endpoint explicitly.
+
+  console.log('[EnableUrl] === Enabling workers.dev URL ===');
+
+  // First: get the account's workers.dev subdomain name
   const subdomainRes = await cfFetch(`/accounts/${state.accountId}/workers/subdomain`);
   console.log('[EnableUrl] Subdomain response:', JSON.stringify(subdomainRes));
 
@@ -815,13 +968,19 @@ async function enableWorkersDevUrl() {
   state.deployUrl = `https://${state.workerName}.${subdomain}.workers.dev`;
   console.log('[EnableUrl] Workers.dev URL:', state.deployUrl);
 
-  // Verify the Worker has a deployment by checking its settings
-  const settingsRes = await cfFetch(`/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/settings`);
-  console.log('[EnableUrl] Script settings:', JSON.stringify(settingsRes));
-
-  if (settingsRes.success) {
-    const hasDeployment = settingsRes.result?.has_deployments !== false;
-    console.log('[EnableUrl] Has deployment:', hasDeployment);
+  // Second: explicitly enable the workers.dev route via the services API.
+  // This is the critical missing step — without this, the Worker exists
+  // but has no active route, showing "There is nothing here yet".
+  console.log('[EnableUrl] Enabling workers.dev route via services API...');
+  const enableRes = await cfFetch(
+    `/accounts/${state.accountId}/workers/services/${encodeURIComponent(state.workerName)}/environments/production/subdomain`,
+    { method: 'POST', body: JSON.stringify({ enabled: true }) }
+  );
+  console.log('[EnableUrl] Enable route success:', enableRes.success, 'HTTP:', enableRes._status);
+  if (!enableRes.success) {
+    console.warn('[EnableUrl] Enable route errors:', JSON.stringify(enableRes.errors));
+    // Don't fail — the Beta API may have already enabled it via subdomain: {enabled: true}.
+    // Only warn.
   }
 
   return { ok: true, subdomain };
@@ -1283,13 +1442,6 @@ function renderDeploy() {
         <div class="progress-detail" data-t="deployDetail"></div>
       </div>
     </li>
-    <li class="progress-item waiting" id="prog-enable-url">
-      <span class="progress-icon">○</span>
-      <div>
-        <div class="progress-text" data-t="stepEnableUrl"></div>
-        <div class="progress-detail" data-t="enableUrlDetail"></div>
-      </div>
-    </li>
     <li class="progress-item waiting" id="prog-verify">
       <span class="progress-icon">○</span>
       <div>
@@ -1350,7 +1502,7 @@ async function runDeployment() {
   const d1Msg = d1Result.existed ? t('stepD1Exists') : state.dbId;
   setProgress('prog-d1', 'done', d1Msg);
 
-  // Step 3: Deploy Worker
+  // Step 3: Deploy Worker (Beta API 3-step: create → upload version → deploy)
   setProgress('prog-deploy', 'active');
   const deployResult = await deployWorker();
   if (!deployResult.ok) {
@@ -1361,21 +1513,18 @@ async function runDeployment() {
   }
   setProgress('prog-deploy', 'done', deployResult.via || '');
 
-  // Step 4: Enable workers.dev URL
-  setProgress('prog-enable-url', 'active');
-  const enableResult = await enableWorkersDevUrl();
-  if (!enableResult.ok) {
-    setProgress('prog-enable-url', 'error');
-    if (enableResult.noSubdomain) {
-      alertEl().innerHTML = alert('warn', enableResult.msg);
-    } else {
-      alertEl().innerHTML = alert('error', enableResult.msg || t('errEnableUrl'));
+  // Enable workers.dev route and construct URL
+  const urlResult = await enableWorkersDevUrl();
+  if (!urlResult.ok) {
+    if (urlResult.noSubdomain) {
+      setProgress('prog-verify', 'error');
+      alertEl().innerHTML = alert('warn', urlResult.msg);
+      showBtns();
+      return;
     }
-  } else {
-    setProgress('prog-enable-url', 'done', state.deployUrl);
   }
 
-  // Step 5: Verify
+  // Step 4: Verify
   setProgress('prog-verify', 'active');
   await verifyDeployment();
   const bindingCheck = await verifyBindings();

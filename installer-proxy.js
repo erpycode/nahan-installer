@@ -23,6 +23,7 @@ function isAllowedPath(path) {
     /^\/accounts\/[^/]+\/d1\/database/,                // D1 create, list, delete
     /^\/accounts\/[^/]+\/workers\/scripts\//,           // Worker settings, delete, deployments
     /^\/accounts\/[^/]+\/workers\/workers(\/|$)/,       // Worker create, list, get, versions (Beta API)
+    /^\/accounts\/[^/]+\/workers\/services\//,          // Worker services (subdomain enablement)
     /^\/accounts\/[^/]+\/workers\/subdomain$/,          // Workers.dev subdomain
     /^\/accounts\/[^/]+$/,                              // Account info
   ];
@@ -83,19 +84,37 @@ export default {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         const ct = request.headers.get('Content-Type') || '';
         if (ct.includes('multipart/form-data')) {
-          opts.body = await request.formData();
+          const formData = await request.formData();
+          // Log form data fields for debugging
+          const fieldNames = [];
+          for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+              fieldNames.push(`${key}(file: ${value.name}, ${value.size} bytes, ${value.type})`);
+            } else {
+              fieldNames.push(`${key}(string: ${String(value).length} chars)`);
+            }
+          }
+          console.log(`[Proxy] ${request.method} ${target} multipart fields: [${fieldNames.join(', ')}]`);
+          opts.body = formData;
         } else {
           opts.body = await request.text();
           opts.headers['Content-Type'] = 'application/json';
         }
       }
 
+      console.log(`[Proxy] ${request.method} ${cfUrl}`);
       const resp = await fetch(cfUrl, opts);
-      return new Response(await resp.text(), {
+      const respText = await resp.text();
+      console.log(`[Proxy] Response: HTTP ${resp.status}, ${respText.length} bytes`);
+      if (resp.status >= 400) {
+        console.log(`[Proxy] Error response: ${respText.substring(0, 500)}`);
+      }
+      return new Response(respText, {
         status: resp.status,
         headers: { 'Content-Type': 'application/json', ...CORS },
       });
     } catch (e) {
+      console.error(`[Proxy] Error:`, e.message);
       return jsonResp({ error: e.message }, 502);
     }
   },
