@@ -63,10 +63,10 @@
 
 ### مرحله ۲: باز کردن نصب‌کننده
 
-فایل `installer.html` را در مرورگر خود باز کنید:
+فایل `index.html` را در مرورگر خود باز کنید:
 
 ```
-file:///path/to/nahan-installer/installer.html
+file:///path/to/nahan-installer/index.html
 ```
 
 یا آن را روی GitHub Pages یا هاست استاتیک دیگری میزبانی کنید.
@@ -84,7 +84,7 @@ file:///path/to/nahan-installer/installer.html
 
 ```
 nahan-installer/
-├── installer.html          # 🌐 رابط اصلی نصب‌کننده (در مرورگر باز کنید)
+├── index.html          # 🌐 رابط اصلی نصب‌کننده (در مرورگر باز کنید)
 ├── installer-proxy.js      # 🔒 کد Worker پروکسی (برای میزبانی شخصی)
 └── README.md               # 📖 این فایل (English)
     README.fa.md            # 📖 فارسی
@@ -94,7 +94,7 @@ nahan-installer/
 
 | فایل | چه کسی نیاز دارد؟ | توضیح |
 |------|-------------------|-------|
-| `installer.html` | **همه** | نصب‌کننده اصلی — در هر مرورگری باز کنید تا نهان را مستقر کنید |
+| `index.html` | **همه** | نصب‌کننده اصلی — در هر مرورگری باز کنید تا نهان را مستقر کنید |
 | `installer-proxy.js` | **نگهدارندگان پروکسی** | کد Worker پروکسی API. توسط نصب‌کننده برای relay درخواست‌های Cloudflare API استفاده می‌شود وقتی دسترسی مستقیم مرورگر مسدود است (CORS). اگر می‌خواهید پروکسی خودتان را میزبانی کنید، این را در اکانت Cloudflare خود مستقر کنید. |
 
 ---
@@ -152,7 +152,7 @@ nahan-installer/
 git clone https://github.com/erpycode/nahan-installer.git
 
 # باز کردن در مرورگر
-open installer.html
+open index.html
 ```
 
 ---

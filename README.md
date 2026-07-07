@@ -61,10 +61,10 @@ Required permissions:
 
 ### Step 2: Open the Installer
 
-Open `installer.html` in your browser:
+Open `index.html` in your browser:
 
 ```
-file:///path/to/nahan-installer/installer.html
+file:///path/to/nahan-installer/index.html
 ```
 
 Or host it on GitHub Pages / any static host.
@@ -82,7 +82,7 @@ Or host it on GitHub Pages / any static host.
 
 ```
 nahan-installer/
-├── installer.html          # 🌐 Main installer UI (open in browser)
+├── index.html          # 🌐 Main installer UI (open in browser)
 ├── installer-proxy.js      # 🔒 Proxy Worker code (for self-hosting)
 └── README.md               # 📖 This file (English)
     README.fa.md            # 📖 فارسی
@@ -92,7 +92,7 @@ nahan-installer/
 
 | File | Who needs it? | Description |
 |------|---------------|-------------|
-| `installer.html` | **Everyone** | The main installer — open in any browser to deploy Nahan |
+| `index.html` | **Everyone** | The main installer — open in any browser to deploy Nahan |
 | `installer-proxy.js` | **Proxy maintainers** | Cloudflare Worker code for the API proxy. Used by the installer to relay Cloudflare API calls when direct browser access is blocked (CORS). Deploy this on your own account if you want to self-host the proxy. |
 
 ---
@@ -150,7 +150,7 @@ This project is a static HTML file — no build step required.
 git clone https://github.com/erpycode/nahan-installer.git
 
 # Open in browser
-open installer.html
+open index.html
 ```
 
 ---
