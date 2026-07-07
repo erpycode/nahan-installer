@@ -738,7 +738,26 @@ async function deployWorker() {
   }
   console.log('[Deploy] ✓ Stable upload succeeded');
 
-  // Step 2: Enable workers.dev route via services API
+  // Step 2: Create explicit deployment to make the worker live
+  console.log('[Deploy] Creating deployment...');
+  const deployPath = `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/deployments`;
+  const deployBody = {
+    strategy: 'simple',
+    manifest: {
+      'worker.js': {
+        file: 'worker.js'
+      }
+    }
+  };
+  const deployRes = await cfFetch(deployPath, { method: 'POST', body: JSON.stringify(deployBody) });
+  console.log('[Deploy] Deployment result:', deployRes.success, 'HTTP:', deployRes._status);
+  if (!deployRes.success) {
+    console.warn('[Deploy] Deployment creation failed, but worker may still be live:', JSON.stringify(deployRes.errors));
+  } else {
+    console.log('[Deploy] ✓ Explicit deployment created');
+  }
+
+  // Step 3: Enable workers.dev route via services API
   console.log('[Deploy] Enabling workers.dev route...');
   const enableRes = await cfFetch(
     `/accounts/${state.accountId}/workers/services/${encodeURIComponent(state.workerName)}/environments/production/subdomain`,
@@ -747,15 +766,14 @@ async function deployWorker() {
   console.log('[Deploy] Enable subdomain success:', enableRes.success, 'HTTP:', enableRes._status);
   if (enableRes.success) {
     console.log('[Deploy] ✓ workers.dev route enabled');
-    return { ok: true, via: 'stable+services' };
+    return { ok: true, via: 'stable+deploy+services' };
   }
 
   // Subdomain enablement failed — log but don't fail.
-  // The Beta API might have already enabled it, or the account might not have a subdomain.
   console.warn('[Deploy] Enable subdomain errors:', JSON.stringify(enableRes.errors));
   console.warn('[Deploy] Enable subdomain messages:', JSON.stringify(enableRes.messages));
   console.log('[Deploy] Proceeding — subdomain may already be enabled');
-  return { ok: true, via: 'stable' };
+  return { ok: true, via: 'stable+deploy' };
 }
 
 async function deployWorkerStable() {
@@ -840,21 +858,61 @@ async function enableWorkersDevUrl() {
 }
 
 async function verifyDeployment() {
+  const testUrl = state.deployUrl;
+  if (!testUrl) {
+    console.warn('[Verify] No deploy URL to verify');
+    return { ok: false };
+  }
+
   try {
-    // Check if the URL is actually reachable
-    const testUrl = state.deployUrl;
-    if (testUrl) {
-      try {
-        const testRes = await fetch(testUrl, { method: 'GET', mode: 'no-cors' });
-        console.log('[Verify] URL reachability check:', testRes.status || 'opaque (CORS)');
-      } catch (e) {
-        console.warn('[Verify] URL reachability check failed (may be CORS):', e.message);
-      }
+    // Method 1: Try fetching the URL directly (may fail due to CORS but connection still works)
+    console.log('[Verify] Testing URL:', testUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    
+    try {
+      const testRes = await fetch(testUrl, { 
+        method: 'GET', 
+        mode: 'no-cors',
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      // With no-cors, status is 0 (opaque) — any response means the server is reachable
+      console.log('[Verify] URL reachable (status:', testRes.status, ', type:', testRes.type, ')');
+      return { ok: true };
+    } catch (e) {
+      clearTimeout(timeoutId);
+      console.warn('[Verify] Direct fetch failed:', e.message);
     }
+
+    // Method 2: Try to ping the worker via the Cloudflare API
+    try {
+      const settingsRes = await cfFetch(`/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/settings`);
+      if (settingsRes.success && settingsRes.result) {
+        console.log('[Verify] Worker exists in Cloudflare (confirmed via API)');
+        return { ok: true };
+      }
+    } catch (e) {
+      console.warn('[Verify] API check failed:', e.message);
+    }
+
+    // Method 3: Check if the subdomain is active
+    try {
+      const subdomainRes = await cfFetch(`/accounts/${state.accountId}/workers/subdomain`);
+      if (subdomainRes.success && subdomainRes.result?.subdomain) {
+        console.log('[Verify] Subdomain exists:', subdomainRes.result.subdomain);
+        // Worker exists and subdomain exists — likely just needs more propagation time
+        return { ok: true };
+      }
+    } catch (e) {
+      console.warn('[Verify] Subdomain check failed:', e.message);
+    }
+
+    return { ok: false };
   } catch (e) {
     console.warn('[Verify] Verification error:', e.message);
+    return { ok: false };
   }
-  return { ok: true };
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1394,9 +1452,31 @@ async function runDeployment() {
     }
   }
 
-  // Step 4: Verify
+  // Step 4: Wait for propagation then verify with retries
   setProgress('prog-verify', 'active');
-  await verifyDeployment();
+  
+  // Wait for Cloudflare edge propagation
+  const waitMs = 8000; // 8 seconds initial wait
+  setProgress('prog-verify', 'active', lang === 'fa' ? 'صبر کنید در حال انتشار...' : 'Waiting for propagation...');
+  await new Promise(resolve => setTimeout(resolve, waitMs));
+  
+  // Retry verification up to 3 times
+  let verified = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    console.log(`[Verify] Attempt ${attempt}/3...`);
+    const verifyResult = await verifyDeployment();
+    if (verifyResult.ok) {
+      verified = true;
+      break;
+    }
+    if (attempt < 3) {
+      setProgress('prog-verify', 'active', lang === 'fa' 
+        ? `تلاش ${attempt}/3 — تلاش مجدد...` 
+        : `Attempt ${attempt}/3 — retrying...`);
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 5s between retries
+    }
+  }
+  
   const bindingCheck = await verifyBindings();
   const bindingInfo = bindingCheck.ok ? 'D1 ✓' : '';
   const urlInfo = state.deployUrl || 'No URL';

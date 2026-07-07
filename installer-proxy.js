@@ -21,7 +21,8 @@ function isAllowedPath(path) {
   if (!path.startsWith('/accounts/')) return false;
   const patterns = [
     /^\/accounts\/[^/]+\/d1\/database/,                // D1 create, list, delete
-    /^\/accounts\/[^/]+\/workers\/scripts\//,           // Worker settings, delete, deployments
+    /^\/accounts\/[^/]+\/workers\/scripts\//,           // Worker upload (PUT), settings, delete
+    /^\/accounts\/[^/]+\/workers\/scripts\/[^/]+\/deployments$/, // Worker deployments
     /^\/accounts\/[^/]+\/workers\/workers(\/|$)/,       // Worker create, list, get, versions (Beta API)
     /^\/accounts\/[^/]+\/workers\/services\//,          // Worker services (subdomain enablement)
     /^\/accounts\/[^/]+\/workers\/subdomain$/,          // Workers.dev subdomain
@@ -78,7 +79,7 @@ export default {
       const cfUrl = `https://api.cloudflare.com/client/v4${target}`;
       const opts = {
         method: request.method,
-        headers: { Authorization: apiToken },
+        headers: { Authorization: apiToken }
       };
 
       if (request.method !== 'GET' && request.method !== 'HEAD') {
