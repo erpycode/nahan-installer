@@ -996,11 +996,6 @@ function renderWelcome() {
     <li class="perm-item"><span class="perm-icon">🌐</span><span data-t="permDNS"></span></li>
   </ul>
 
-  <div style="margin:16px 0">
-    <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener"
-       style="color:var(--cyan);font-size:.88rem;text-decoration:underline" data-t="createTokenLink"></a>
-  </div>
-
   <div class="btn-group">
     <button class="btn btn-primary" onclick="goStep(1)" data-t="letsStart"></button>
   </div>
@@ -1369,11 +1364,24 @@ function renderCredentials() {
 
   <div class="form-group">
     <label class="form-label" data-t="labelToken"></label>
-    <a href="${createTokenUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;text-decoration:none;font-size:.85rem">
+
+    <!-- Step-by-step guide -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px">
+      <div style="font-weight:600;color:var(--cyan);margin-bottom:10px;font-size:.9rem">📋 ${lang === 'fa' ? 'راهنمای ساخت API Token:' : 'How to create an API Token:'}</div>
+      <ol style="padding-${lang === 'fa' ? 'right' : 'left'}:20px;margin:0;color:var(--text2);font-size:.85rem;line-height:2">
+        <li>${lang === 'fa' ? 'روی دکمه زیر کلیک کنید تا صفحه ساخت توکن در Cloudflare باز شود' : 'Click the button below to open the token creation page on Cloudflare'}</li>
+        <li>${lang === 'fa' ? 'در صفحه Cloudflare، پایین بروید و دکمه <b style="color:var(--text)">Create Token</b> را بزنید' : 'On the Cloudflare page, scroll down and click <b style="color:var(--text)">Create Token</b>'}</li>
+        <li>${lang === 'fa' ? 'دسترسی‌ها از پیش انتخاب شده‌اند. فقط دکمه <b style="color:var(--text)">Continue to summary</b> را بزنید' : 'Permissions are pre-selected. Just click <b style="color:var(--text)">Continue to summary</b>'}</li>
+        <li>${lang === 'fa' ? 'روی <b style="color:var(--text)">Create Token</b> کلیک کنید' : 'Click <b style="color:var(--text)">Create Token</b>'}</li>
+        <li>${lang === 'fa' ? 'توکن را کپی کنید و در باکس زیر وارد کنید' : 'Copy the token and paste it in the box below'}</li>
+      </ol>
+    </div>
+
+    <a href="${createTokenUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;text-decoration:none;font-size:.85rem">
       <span data-t="createTokenBtn"></span>
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 7v3a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1h3M7 1h4v4M5 7L10.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
-    <div class="form-hint" data-t="createTokenHint"></div>
+
     <input type="password" class="form-input" id="inpToken" value="${esc(state.apiToken)}"
            placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
     <div class="form-hint" data-t="hintToken"></div>

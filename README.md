@@ -61,6 +61,33 @@ No installation required — just open the link and follow the steps:
 
 ---
 
+## 🔑 How to Create an API Token (Step-by-Step)
+
+If you're not familiar with Cloudflare, follow these steps:
+
+### Step 1: Open the Token Page
+
+Click **"Create API Token on Cloudflare"** in the installer. This opens a page with all required permissions pre-selected.
+
+### Step 2: Create the Token
+
+On the Cloudflare page:
+
+1. 📜 Scroll down to the bottom
+2. 🔵 Click the **"Create Token"** button
+3. ✅ The permissions are already configured — just click **"Continue to summary"**
+4. 🔵 Click **"Create Token"** again to confirm
+5. 📋 **Copy the token** (it starts with a long string of letters and numbers)
+6. 📝 Paste it in the installer
+
+### Step 3: That's it!
+
+The installer will automatically detect your Cloudflare account — no need to find your Account ID manually.
+
+> ⚠️ **Important:** Copy the token immediately! Cloudflare only shows it once. If you lose it, you'll need to create a new one.
+
+---
+
 ## 📁 Project Structure
 
 ```
