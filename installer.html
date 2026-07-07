@@ -426,6 +426,12 @@ const T = {
   connFail: { fa: 'اتصال مستقیم به Cloudflare API از مرورگر شما ممکن نیست.', en: 'Direct connection to Cloudflare API from your browser is not possible.' },
   connFailReason: { fa: 'دلیل: مرورگر شما اجازه دسترسی مستقیم به API را نمی‌دهد (CORS).', en: 'Reason: Your browser blocks direct access to the API (CORS).' },
   connProxyNeeded: { fa: 'برای حل این مشکل، یک Worker پروکسی روی حساب Cloudflare خود مستقر کنید:', en: 'To fix this, deploy a proxy Worker on your Cloudflare account:' },
+  useCustomProxy: { fa: 'استفاده از پروکسی شخصی', en: 'Use Custom Proxy' },
+  customProxyTitle: { fa: 'پروکسی شخصی', en: 'Custom Proxy' },
+  customProxyDesc: { fa: 'آدرس Worker پروکسی خود را وارد کنید', en: 'Enter your proxy Worker URL' },
+  customProxyBtn: { fa: 'اتصال و نصب', en: 'Connect & Install' },
+  countdownText: { fa: 'اتصال خودکار به پروکسی پیش‌فرض در', en: 'Auto-connecting to default proxy in' },
+  seconds: { fa: 'ثانیه', en: 'seconds' },
   proxySetupTitle: { fa: 'تنظیم Installer Proxy', en: 'Installer Proxy Setup' },
   proxyStep1: { fa: 'روی لینک زیر کلیک کنید تا Cloudflare Dashboard باز شود:', en: 'Click the link below to open Cloudflare Dashboard:' },
   proxyStep2: { fa: 'یک Worker جدید بسازید (مثلاً nahan-installer-proxy):', en: 'Create a new Worker (e.g. nahan-installer-proxy):' },
@@ -1056,12 +1062,167 @@ function renderConnTest() {
     <span data-t="connTesting"></span>
   </div>
 
+  <!-- Countdown timer -->
+  <div id="countdownBox" style="text-align:center;margin:16px 0;display:none">
+    <div style="font-size:.9rem;color:var(--text2);margin-bottom:8px">
+      <span data-t="countdownText"></span>
+      <span id="countdownNum" style="font-size:1.4rem;font-weight:700;color:var(--cyan);margin:0 4px">5</span>
+      <span data-t="seconds"></span>
+    </div>
+    <div style="width:100%;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;margin-bottom:12px">
+      <div id="countdownBar" style="width:100%;height:100%;background:linear-gradient(90deg,var(--cyan),var(--purple));transition:width 0.1s linear;border-radius:2px"></div>
+    </div>
+  </div>
+
+  <!-- Custom proxy button (shown during countdown) -->
+  <div id="customProxySection" style="text-align:center;margin:12px 0;display:none">
+    <button class="btn btn-secondary" onclick="showCustomProxyForm()" style="font-size:.85rem;padding:8px 16px">
+      🔧 <span data-t="useCustomProxy"></span>
+    </button>
+  </div>
+
+  <!-- Custom proxy form (hidden by default) -->
+  <div id="customProxyForm" style="display:none;margin-top:16px">
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+      <div style="font-weight:600;margin-bottom:8px;color:var(--cyan)" data-t="customProxyTitle"></div>
+      <div style="font-size:.85rem;color:var(--text2);margin-bottom:12px" data-t="customProxyDesc"></div>
+      <input type="text" class="form-input" id="inpCustomProxy"
+             placeholder="https://my-proxy.workers.dev" spellcheck="false"
+             style="direction:ltr;text-align:left;margin-bottom:10px">
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary btn-sm" onclick="connectCustomProxy()" id="btnCustomConnect">
+          <span data-t="customProxyBtn"></span>
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="cancelCustomProxy()">
+          <span data-t="back"></span>
+        </button>
+      </div>
+      <div id="customProxyResult" style="margin-top:10px"></div>
+    </div>
+  </div>
+
   <div id="connResult"></div>
 
   <div class="btn-group">
     <button class="btn btn-secondary" onclick="goStep(0)" data-t="back"></button>
   </div>
 </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+//  COUNTDOWN + CUSTOM PROXY
+// ══════════════════════════════════════════════════════════
+let countdownInterval = null;
+let countdownCancelled = false;
+
+function startCountdown(seconds, onDone) {
+  countdownCancelled = false;
+  let remaining = seconds;
+  const numEl = document.getElementById('countdownNum');
+  const barEl = document.getElementById('countdownBar');
+  const boxEl = document.getElementById('countdownBox');
+  const customEl = document.getElementById('customProxySection');
+
+  if (boxEl) boxEl.style.display = 'block';
+  if (customEl) customEl.style.display = 'block';
+  if (numEl) numEl.textContent = remaining;
+  if (barEl) barEl.style.width = '100%';
+
+  countdownInterval = setInterval(() => {
+    if (countdownCancelled) { clearInterval(countdownInterval); return; }
+    remaining--;
+    if (numEl) numEl.textContent = remaining;
+    if (barEl) barEl.style.width = `${(remaining / seconds) * 100}%`;
+    if (remaining <= 0) {
+      clearInterval(countdownInterval);
+      if (boxEl) boxEl.style.display = 'none';
+      if (customEl) customEl.style.display = 'none';
+      onDone();
+    }
+  }, 1000);
+}
+
+function cancelCountdown() {
+  countdownCancelled = true;
+  if (countdownInterval) clearInterval(countdownInterval);
+  const boxEl = document.getElementById('countdownBox');
+  const customEl = document.getElementById('customProxySection');
+  if (boxEl) boxEl.style.display = 'none';
+  if (customEl) customEl.style.display = 'none';
+}
+
+function showCustomProxyForm() {
+  cancelCountdown();
+  const form = document.getElementById('customProxyForm');
+  if (form) form.style.display = 'block';
+}
+
+function cancelCustomProxy() {
+  const form = document.getElementById('customProxyForm');
+  if (form) form.style.display = 'none';
+  // Resume countdown
+  startCountdown(5, () => connectDefaultProxy());
+}
+
+async function connectCustomProxy() {
+  const inp = document.getElementById('inpCustomProxy');
+  const resultEl = document.getElementById('customProxyResult');
+  const btnEl = document.getElementById('btnCustomConnect');
+  const url = inp.value.trim().replace(/\/+$/, '');
+
+  if (!url) {
+    resultEl.innerHTML = alert('error', lang === 'fa' ? 'آدرس پروکسی را وارد کنید' : 'Enter proxy URL');
+    return;
+  }
+
+  btnEl.disabled = true;
+  btnEl.innerHTML = `<div class="spinner"></div>`;
+
+  try {
+    const res = await fetch(`${url}/health`);
+    const json = await res.json();
+    if (json.ok) {
+      state.proxyUrl = url;
+      localStorage.setItem('nahan_proxy_url', url);
+      cancelCountdown();
+      const statusEl = document.getElementById('connStatus');
+      statusEl.className = 'conn-status conn-ok';
+      statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+      setTimeout(() => goStep(2), 1000);
+    } else {
+      resultEl.innerHTML = alert('error', t('proxyFailed'));
+    }
+  } catch (e) {
+    resultEl.innerHTML = alert('error', `${t('proxyFailed')}: ${e.message}`);
+  }
+
+  btnEl.disabled = false;
+  btnEl.textContent = t('customProxyBtn');
+}
+
+async function connectDefaultProxy() {
+  const statusEl = document.getElementById('connStatus');
+  const resultEl = document.getElementById('connResult');
+
+  statusEl.className = 'conn-status conn-testing';
+  statusEl.innerHTML = `<div class="spinner"></div><span>${t('connTesting')}</span>`;
+
+  try {
+    const r = await fetch(`${DEFAULT_PROXY_URL}/health`);
+    const j = await r.json();
+    if (j.ok) {
+      state.proxyUrl = DEFAULT_PROXY_URL;
+      statusEl.className = 'conn-status conn-ok';
+      statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+      setTimeout(() => goStep(2), 1000);
+      return;
+    }
+  } catch (e) { /* failed */ }
+
+  // Default proxy also failed — show manual setup
+  statusEl.className = 'conn-status conn-fail';
+  statusEl.innerHTML = `<span>✗</span><span>${t('connFail')}</span>`;
+  resultEl.innerHTML = renderProxySetup();
 }
 
 async function runConnectivityTest() {
@@ -1097,29 +1258,13 @@ async function runConnectivityTest() {
     return;
   }
 
-  // Direct failed — try default proxy
+  // Direct failed — start countdown for default proxy
   statusEl.className = 'conn-status conn-testing';
-  statusEl.innerHTML = `<div class="spinner"></div><span>${t('connTesting')}</span>`;
-  resultEl.innerHTML = `<div class="form-hint" style="margin-top:8px">${lang === 'fa' ? 'اتصال مستقیم مسدود است. در حال آزمایش پروکسی...' : 'Direct access blocked. Testing proxy...'}</div>`;
+  statusEl.innerHTML = `<div class="spinner"></div><span>${lang === 'fa' ? 'اتصال مستقیم مسدود است' : 'Direct access blocked'}</span>`;
+  resultEl.innerHTML = `<div class="form-hint" style="margin-top:8px">${lang === 'fa' ? 'اتصال مستقیم مسدود است. در حال اتصال به پروکسی پیش‌فرض...' : 'Direct access blocked. Connecting to default proxy...'}</div>`;
 
-  try {
-    const r = await fetch(`${DEFAULT_PROXY_URL}/health`);
-    const j = await r.json();
-    if (j.ok) {
-      state.proxyUrl = DEFAULT_PROXY_URL;
-      statusEl.className = 'conn-status conn-ok';
-      statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
-      setTimeout(() => goStep(2), 1000);
-      return;
-    }
-  } catch (e) {
-    // default proxy also failed
-  }
-
-  // Both failed — show manual setup
-  statusEl.className = 'conn-status conn-fail';
-  statusEl.innerHTML = `<span>✗</span><span>${t('connFail')}</span>`;
-  resultEl.innerHTML = renderProxySetup();
+  // Start 5-second countdown — user can enter custom proxy or wait for auto-connect
+  startCountdown(5, () => connectDefaultProxy());
 }
 
 function renderProxySetup() {
