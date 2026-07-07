@@ -9,7 +9,7 @@
 
 <br>
 
-![Nahan Installer](screenshot.png)
+![Nahan Installer](Screenshot.png)
 
 </div>
 
