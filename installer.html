@@ -307,8 +307,8 @@ const T = {
     en: 'Click the button above to open the token creation page with required permissions pre-filled. After creating, copy and paste the token below.'
   },
   hintToken: {
-    fa: 'توکن با دسترسی D1 Edit، Workers Scripts Edit، Account Read',
-    en: 'Token with D1 Edit, Workers Scripts Edit, Account Read permissions'
+    fa: 'توکن با دسترسی D1 Edit، Workers Scripts Edit، Account Read، Account Analytics',
+    en: 'Token with D1 Edit, Workers Scripts Edit, Account Read, Account Analytics permissions'
   },
   labelAccount: { fa: 'شناسه حساب (Account ID)', en: 'Account ID' },
   hintAccount: {
@@ -1206,6 +1206,7 @@ function renderCredentials() {
     { key: 'workers_scripts', type: 'edit' },
     { key: 'd1', type: 'edit' },
     { key: 'account_settings', type: 'read' },
+    { key: 'account_analytics', type: 'read' },
   ];
   const tokenName = 'Nahan Installer';
   const permParam = encodeURIComponent(JSON.stringify(tokenPermissions));
