@@ -292,6 +292,23 @@ const T = {
   createTokenLink: { fa: 'ساخت API Token در Cloudflare', en: 'Create API Token at Cloudflare' },
   letsStart: { fa: 'شروع کنیم', en: "Let's Start" },
 
+  // ── OAuth ──
+  oauthTitle: { fa: 'اتصال سریع به Cloudflare', en: 'Quick Connect to Cloudflare' },
+  oauthDesc: {
+    fa: 'با کلیک روی دکمه زیر، مستقیماً به Cloudflare وصل شوید و دسترسی لازم را بدهید. نیازی به کپی کردن API Token یا پیدا کردن Account ID نیست.',
+    en: 'Click the button below to connect directly to Cloudflare and grant access. No need to copy API tokens or find Account IDs.'
+  },
+  oauthConnect: { fa: 'اتصال به Cloudflare', en: 'Connect to Cloudflare' },
+  oauthConnecting: { fa: 'در حال اتصال...', en: 'Connecting...' },
+  oauthSuccess: { fa: 'اتصال موفق! در حال دریافت اطلاعات حساب...', en: 'Connected! Fetching account info...' },
+  oauthFail: { fa: 'اتصال ناموفق بود. لطفاً دوباره تلاش کنید.', en: 'Connection failed. Please try again.' },
+  oauthOr: { fa: 'یا', en: 'or' },
+  oauthManual: { fa: 'ورود دستی API Token', en: 'Manual API Token Entry' },
+  oauthManualDesc: {
+    fa: 'اگر می‌خواهید به صورت دستی وارد کنید، API Token خود را در زیر وارد کنید.',
+    en: 'If you prefer manual entry, enter your API Token below.'
+  },
+
   // ── Step 2: Credentials ──
   credTitle: { fa: 'اعتبارنامه Cloudflare', en: 'Cloudflare Credentials' },
   credSub: {
@@ -607,6 +624,22 @@ async function testDirectApi() {
     console.warn('[testDirectApi] Direct API access blocked:', e.message);
     return false;
   }
+}
+
+async function fetchAccounts(token) {
+  // Fetch list of accounts the token has access to
+  const prevToken = state.apiToken;
+  state.apiToken = token;
+  const r = await cfFetch('/accounts');
+  state.apiToken = prevToken;
+  if (r.success && Array.isArray(r.result)) {
+    return { ok: true, accounts: r.result };
+  }
+  const errMsg = r.errors?.[0]?.message || '';
+  if (errMsg.includes('Authentication error') || errMsg.includes('Invalid access token')) {
+    return { ok: false, msg: t('tokenInvalid') };
+  }
+  return { ok: false, msg: errMsg || t('tokenInvalid') };
 }
 
 async function validateCredentials() {
@@ -1184,7 +1217,6 @@ async function testProxyConnection() {
 // ── Credentials ──
 function renderCredentials() {
   // Pre-filled token creation URL with required permissions.
-  // Uses Cloudflare's official template URL feature.
   const tokenPermissions = [
     { key: 'workers_scripts', type: 'edit' },
     { key: 'd1', type: 'edit' },
@@ -1202,21 +1234,49 @@ function renderCredentials() {
 
   <div id="credAlert"></div>
 
-  <div class="form-group">
-    <label class="form-label" data-t="labelToken"></label>
-    <a href="${createTokenUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;text-decoration:none;font-size:.85rem">
-      <span data-t="createTokenBtn"></span>
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 7v3a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1h3M7 1h4v4M5 7L10.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </a>
-    <div class="form-hint" data-t="createTokenHint"></div>
-    <input type="password" class="form-input" id="inpToken" value="${esc(state.apiToken)}"
-           placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
-    <div class="form-hint" data-t="hintToken"></div>
+  <!-- OAuth Connect Button (preferred) -->
+  <div style="margin-bottom:20px">
+    <div style="font-weight:600;margin-bottom:8px;font-size:.95rem;color:var(--cyan)" data-t="oauthTitle"></div>
+    <p style="font-size:.85rem;color:var(--text2);margin-bottom:12px" data-t="oauthDesc"></p>
+    <button class="btn btn-primary" id="btnOAuth" onclick="startOAuth()" style="width:100%;justify-content:center;padding:14px">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1a7 7 0 100 14A7 7 0 008 1z" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span data-t="oauthConnect"></span>
+    </button>
   </div>
 
-  <div class="form-group">
+  <div style="text-align:center;margin:16px 0;color:var(--text3);font-size:.85rem" data-t="oauthOr"></div>
+
+  <!-- Manual Token Entry (fallback) -->
+  <details style="margin-bottom:20px">
+    <summary style="cursor:pointer;color:var(--text2);font-size:.88rem;font-weight:500;padding:8px 0" data-t="oauthManual"></summary>
+    <div style="margin-top:12px">
+      <div class="form-hint" data-t="oauthManualDesc" style="margin-bottom:12px"></div>
+      <div class="form-group">
+        <label class="form-label" data-t="labelToken"></label>
+        <a href="${createTokenUrl}" target="_blank" rel="noopener" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;text-decoration:none;font-size:.82rem">
+          <span data-t="createTokenBtn"></span>
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M10 7v3a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1h3M7 1h4v4M5 7L10.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <input type="password" class="form-input" id="inpToken" value="${esc(state.apiToken)}"
+               placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+        <div class="form-hint" data-t="hintToken"></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Account ID: auto-filled after token validation -->
+  <div class="form-group" id="accountGroup" style="display:none">
     <label class="form-label" data-t="labelAccount"></label>
-    <input type="text" class="form-input" id="inpAccount" value="${esc(state.accountId)}"
+    <select class="form-input" id="inpAccount" style="direction:ltr;text-align:left;cursor:pointer" onchange="onAccountSelect()">
+      <option value="">${lang === 'fa' ? 'در حال دریافت اکانت‌ها...' : 'Fetching accounts...'}</option>
+    </select>
+    <div class="form-hint" data-t="hintAccount"></div>
+  </div>
+
+  <!-- Fallback: manual Account ID input -->
+  <div class="form-group" id="accountManual" style="display:none">
+    <label class="form-label" data-t="labelAccount"></label>
+    <input type="text" class="form-input" id="inpAccountManual" value="${esc(state.accountId)}"
            placeholder="abcdef1234567890abcdef1234567890" autocomplete="off" spellcheck="false"
            style="direction:ltr;text-align:left">
     <div class="form-hint" data-t="hintAccount"></div>
@@ -1231,33 +1291,130 @@ function renderCredentials() {
 
 async function handleValidate() {
   const tokenEl = document.getElementById('inpToken');
-  const accEl = document.getElementById('inpAccount');
   const alertEl = document.getElementById('credAlert');
   const btnEl = document.getElementById('btnValidate');
 
   state.apiToken = tokenEl.value.trim();
-  state.accountId = accEl.value.trim();
 
-  if (!state.apiToken || !state.accountId) {
-    alertEl.innerHTML = alert('error', lang === 'fa' ? 'لطفاً هر دو فیلد را پر کنید' : 'Please fill in both fields');
+  if (!state.apiToken) {
+    alertEl.innerHTML = alert('error', lang === 'fa' ? 'لطفاً API Token را وارد کنید' : 'Please enter your API Token');
     return;
   }
 
+  // Check if we already have an account ID (from manual input or previous selection)
+  const manualEl = document.getElementById('inpAccountManual');
+  if (manualEl && manualEl.value.trim()) {
+    state.accountId = manualEl.value.trim();
+  }
+
+  // If we already have an account ID, just validate
+  if (state.accountId) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = `<div class="spinner"></div> ${t('validating')}`;
+    alertEl.innerHTML = '';
+
+    const result = await validateCredentials();
+    btnEl.disabled = false;
+    btnEl.textContent = t('validate');
+
+    if (result.ok) {
+      alertEl.innerHTML = alert('success', `${t('validSuccess')} ${state.accountName ? '(' + esc(state.accountName) + ')' : ''}`);
+      setTimeout(() => goStep(3), 800);
+    } else {
+      alertEl.innerHTML = alert('error', result.msg);
+    }
+    return;
+  }
+
+  // No account ID yet — fetch accounts from API
   btnEl.disabled = true;
-  btnEl.innerHTML = `<div class="spinner"></div> ${t('validating')}`;
+  btnEl.innerHTML = `<div class="spinner"></div> ${lang === 'fa' ? 'در حال دریافت اکانت‌ها...' : 'Fetching accounts...'}`;
   alertEl.innerHTML = '';
 
-  const result = await validateCredentials();
+  const acctsResult = await fetchAccounts(state.apiToken);
+
+  if (!acctsResult.ok) {
+    btnEl.disabled = false;
+    btnEl.textContent = t('validate');
+    alertEl.innerHTML = alert('error', acctsResult.msg);
+    return;
+  }
+
+  const accounts = acctsResult.accounts;
+  if (!accounts || accounts.length === 0) {
+    btnEl.disabled = false;
+    btnEl.textContent = t('validate');
+    alertEl.innerHTML = alert('error', lang === 'fa' ? 'هیچ اکانتی یافت نشد' : 'No accounts found');
+    return;
+  }
+
+  // If only one account, auto-select
+  if (accounts.length === 1) {
+    state.accountId = accounts[0].id;
+    state.accountName = accounts[0].name || '';
+    alertEl.innerHTML = alert('success', `${t('validSuccess')} (${esc(state.accountName)})`);
+    btnEl.disabled = false;
+    btnEl.textContent = t('validate');
+    setTimeout(() => goStep(3), 800);
+    return;
+  }
+
+  // Multiple accounts — show dropdown
+  const acctGroup = document.getElementById('accountGroup');
+  const acctSelect = document.getElementById('inpAccount');
+  acctGroup.style.display = 'block';
+  
+  let options = `<option value="">${lang === 'fa' ? 'یک اکانت انتخاب کنید' : 'Select an account'}</option>`;
+  for (const acct of accounts) {
+    options += `<option value="${esc(acct.id)}">${esc(acct.name || acct.id)}</option>`;
+  }
+  acctSelect.innerHTML = options;
 
   btnEl.disabled = false;
   btnEl.textContent = t('validate');
+  alertEl.innerHTML = alert('info', lang === 'fa' 
+    ? `چند اکانت یافت شد. لطفاً یکی را انتخاب کنید و دوباره اعتبارسنجی کنید.`
+    : `Multiple accounts found. Please select one and validate again.`);
+}
 
-  if (result.ok) {
-    alertEl.innerHTML = alert('success', `${t('validSuccess')} ${state.accountName ? '(' + esc(state.accountName) + ')' : ''}`);
-    setTimeout(() => goStep(3), 800);
-  } else {
-    alertEl.innerHTML = alert('error', result.msg);
+function onAccountSelect() {
+  const sel = document.getElementById('inpAccount');
+  if (sel && sel.value) {
+    state.accountId = sel.value;
+    const opt = sel.options[sel.selectedIndex];
+    state.accountName = opt ? opt.textContent : '';
   }
+}
+
+// ══════════════════════════════════════════════════════════
+//  OAuth FLOW
+// ══════════════════════════════════════════════════════════
+const OAUTH_WORKER = 'https://nahan-oauth.erpy.workers.dev';
+
+function startOAuth() {
+  // Redirect to OAuth Worker which will redirect to Cloudflare
+  window.location.href = `${OAUTH_WORKER}/auth`;
+}
+
+// Check if we're returning from OAuth callback (token in URL hash)
+function checkOAuthCallback() {
+  const hash = window.location.hash;
+  if (!hash || !hash.includes('token=')) return false;
+
+  const params = new URLSearchParams(hash.substring(1));
+  const token = params.get('token');
+  const accountId = params.get('account_id');
+  const accountName = params.get('account_name');
+
+  if (token) {
+    state.apiToken = token;
+    state.accountId = accountId || '';
+    state.accountName = accountName || '';
+    // Clear the hash
+    history.replaceState(null, '', window.location.pathname);
+    return true;
+  }
+  return false;
 }
 
 // ── Configuration ──
@@ -1624,7 +1781,15 @@ function resetAll() {
 // ══════════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════════
-renderStep();
+if (checkOAuthCallback()) {
+  // Returned from OAuth — skip to credentials validation
+  currentStep = 2;
+  renderStep();
+  // Auto-validate after OAuth
+  setTimeout(() => handleValidate(), 500);
+} else {
+  renderStep();
+}
 </script>
 </body>
 </html>
