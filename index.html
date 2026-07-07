@@ -231,7 +231,7 @@ opacity:0;pointer-events:none;transition:var(--transition);border:1px solid var(
 
 /* ── Welcome Features ── */
 .feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
-@media(max-width:520px){.feature-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.feature-grid{grid-template-columns:1fr;gap:10px}.feature-item{padding:12px}}
 .feature-item{
 display:flex;align-items:center;gap:10px;padding:12px 14px;
 background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
@@ -239,6 +239,113 @@ font-size:.88rem;transition:var(--transition)
 }
 .feature-item:hover{border-color:var(--cyan);background:var(--cyan-bg)}
 .feature-icon{font-size:1.2rem;flex-shrink:0}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE OPTIMIZATION
+   ══════════════════════════════════════════════════════════ */
+
+/* Small phones (< 380px) */
+@media(max-width:380px) {
+  .container{padding:16px 12px 40px}
+  .card{padding:16px 14px}
+  .card-title{font-size:1.1rem}
+  .card-subtitle{font-size:.8rem}
+  .btn{padding:10px 16px;font-size:.85rem}
+  .logo{font-size:1.6rem}
+  .logo-sub{font-size:.75rem}
+  .step-label{font-size:.65rem}
+  .form-input{padding:10px 12px;font-size:.9rem}
+  .form-hint{font-size:.75rem}
+  .conn-status{padding:10px 14px;font-size:.8rem}
+  .result-box{padding:10px 12px}
+  .alert{padding:10px 12px;font-size:.8rem}
+  .lang-btn{font-size:.8rem;padding:8px 12px;min-height:36px;min-width:60px}
+}
+
+/* Mobile phones (< 520px) */
+@media(max-width:520px) {
+  .container{padding:20px 16px 44px}
+  .header{text-align:center}
+  .logo{font-size:1.8rem;letter-spacing:3px}
+  .logo-sub{font-size:.8rem;margin-top:4px}
+  .card{padding:18px 16px;border-radius:10px}
+  .card-title{font-size:1.15rem;margin-bottom:4px}
+  .card-subtitle{font-size:.82rem}
+  .btn{padding:12px 20px;font-size:.88rem;border-radius:8px}
+  .btn-primary{min-height:44px}
+  .btn-secondary{min-height:44px}
+  .btn-group{flex-direction:column;gap:10px}
+  .btn-group .btn{width:100%;justify-content:center}
+  .form-input{padding:12px 14px;font-size:.95rem;border-radius:8px}
+  .form-label{font-size:.88rem;margin-bottom:6px}
+  .form-hint{font-size:.78rem;margin-top:4px}
+  .step-dot{width:8px;height:8px}
+  .step-label{font-size:.7rem;max-width:60px}
+  .steps-indicator{gap:8px;margin-bottom:24px}
+  .conn-status{padding:14px 16px;border-radius:8px}
+  .alert{padding:12px 14px;border-radius:8px;font-size:.85rem}
+  .alert-icon{font-size:1.1rem}
+  .result-box{padding:12px 14px;border-radius:8px}
+  .result-label{font-size:.82rem}
+  .result-value{font-size:.88rem;flex-direction:column;align-items:flex-start;gap:6px}
+  .copy-btn{font-size:.75rem;padding:4px 10px}
+  .lang-btn{top:12px;right:12px;font-size:.75rem;padding:6px 10px;border-radius:6px}
+  .config-grid{grid-template-columns:1fr;gap:12px}
+  .feature-grid{grid-template-columns:1fr;gap:10px}
+  .feature-item{padding:12px}
+  .divider{margin:16px 0}
+
+  /* Custom proxy form */
+  #customProxyForm input{font-size:.95rem;padding:12px}
+  #customProxyForm .btn{min-height:44px}
+
+  /* Proxy selection buttons */
+  #proxyButtons .btn{min-width:auto;min-height:48px;padding:14px 20px}
+
+  /* Success page */
+  .success-icon{width:50px;height:50px;font-size:24px}
+}
+
+/* Tablets (520px - 768px) */
+@media(min-width:521px) and (max-width:768px) {
+  .container{padding:24px 20px 48px}
+  .card{padding:22px 20px}
+  .btn{padding:12px 24px}
+  .config-grid{grid-template-columns:1fr 1fr}
+}
+
+/* Touch-friendly improvements */
+@media(hover:none) and (pointer:coarse) {
+  .btn{min-height:44px}
+  .form-input{min-height:44px}
+  .lang-btn{min-height:36px}
+  .copy-btn{min-height:32px}
+  .step-dot{width:10px;height:10px}
+}
+
+/* Safe area for notched phones */
+@supports(padding:max(0px)) {
+  .container{padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+}
+
+/* Dark mode scrollbar */
+@media(prefers-color-scheme:dark) {
+  ::-webkit-scrollbar{width:6px}
+  ::-webkit-scrollbar-track{background:var(--bg2)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media(max-width:520px) {
+  input,select,textarea{font-size:16px!important}
+}
+
+/* Print styles */
+@media print{
+  .lang-btn,.btn-group,.steps-indicator{display:none!important}
+  .card{break-inside:avoid;box-shadow:none;border:1px solid #ddd}
+  body{background:#fff;color:#000}
+}
 </style>
 </head>
 <body>
