@@ -805,17 +805,32 @@ async function deployWorkerStable() {
 
   const MODULE_FILENAME = 'worker.js';
 
-  // Inject password into worker code if user set a custom one
+  // Inject config into worker code
   let code = state.workerCode;
+
+  // Inject custom password
   if (state.password && state.password !== 'admin') {
-    // Replace default password patterns in worker code
-    // Common patterns: masterKey, MASTER_KEY, admin password config
     code = code.replace(/masterKey\s*[=:]\s*['"]admin['"]/g, `masterKey: '${state.password}'`);
     code = code.replace(/MASTER_KEY\s*=\s*['"]admin['"]/g, `MASTER_KEY = '${state.password}'`);
     code = code.replace(/['"]admin['"]\s*\/\/\s*default\s*password/gi, `'${state.password}' // custom password`);
     code = code.replace(/password\s*[=:]\s*['"]admin['"]/g, `password: '${state.password}'`);
-    console.log('[Stable] Injected custom password into worker code');
+    console.log('[Stable] Injected custom password');
   }
+
+  // Inject worker name, account ID, and API token for auto-configuration
+  if (state.workerName) {
+    code = code.replace(/WORKER_NAME\s*[=:]\s*['"][^'"]*['"]/g, `WORKER_NAME = '${state.workerName}'`);
+    code = code.replace(/workerName\s*[=:]\s*['"][^'"]*['"]/g, `workerName: '${state.workerName}'`);
+  }
+  if (state.accountId) {
+    code = code.replace(/ACCOUNT_ID\s*[=:]\s*['"][^'"]*['"]/g, `ACCOUNT_ID = '${state.accountId}'`);
+    code = code.replace(/accountId\s*[=:]\s*['"][^'"]*['"]/g, `accountId: '${state.accountId}'`);
+  }
+  if (state.apiToken) {
+    code = code.replace(/API_TOKEN\s*[=:]\s*['"][^'"]*['"]/g, `API_TOKEN = '${state.apiToken}'`);
+    code = code.replace(/apiToken\s*[=:]\s*['"][^'"]*['"]/g, `apiToken: '${state.apiToken}'`);
+  }
+  console.log('[Stable] Injected config: workerName, accountId, apiToken');
 
   const metadata = {
     main_module: MODULE_FILENAME,
