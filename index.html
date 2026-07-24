@@ -1675,12 +1675,13 @@ function renderConfig() {
     </div>` : ''}
   </div>
 
+  ${!isUpdate ? `
   <div class="form-group">
     <label class="form-label" data-t="labelPassword"></label>
     <input type="password" class="form-input" id="inpPassword" value="${esc(state.password)}"
            placeholder="admin" autocomplete="off" spellcheck="false">
     <div class="form-hint" data-t="hintPassword"></div>
-  </div>
+  </div>` : ''}
 
   <details style="margin-bottom:20px">
     <summary style="cursor:pointer;color:var(--cyan);font-size:.9rem;font-weight:600;padding:8px 0" data-t="advSettings"></summary>
@@ -1725,11 +1726,21 @@ function handleConfigNext() {
   }
 
   state.workerName = workerName;
+
+  // Read DB Name if visible
   const dbInput = document.getElementById('inpDB');
   if (dbInput) {
     state.dbName = dbInput.value.trim() || 'iot_db';
   }
-  state.password = document.getElementById('inpPassword').value;
+
+  // Read Password if visible
+  const passInput = document.getElementById('inpPassword');
+  if (passInput) {
+    state.password = passInput.value;
+  } else {
+    state.password = ''; // Don't modify password in update mode
+  }
+
   state.apiRoute = document.getElementById('inpRoute').value.trim() || 'sync';
   state.tgToken = document.getElementById('inpTgToken').value.trim();
   state.tgAdminId = document.getElementById('inpTgAdmin').value.trim();
@@ -1906,15 +1917,23 @@ function renderSuccess() {
   </div>`;
   }
 
-  // Only show security warning if using default password
-  const securityWarning = isDefaultPass ? `
+  // Only show password card, security warning, and quick start guide during FRESH INSTALLS
+  const securityWarning = (!state.isUpdate && isDefaultPass) ? `
   <div class="alert alert-warn">
     <span class="alert-icon">⚠️</span>
     <span data-t="securityWarning"></span>
   </div>` : '';
 
-  // Only show quick start steps if using default password
-  const steps = isDefaultPass ? t('quickStartSteps') : [];
+  const passSection = (!state.isUpdate) ? `
+  <div class="result-box">
+    <div class="result-label" data-t="labelDefaultPass"></div>
+    <div class="result-value" style="color:var(--red)">
+      <span>${esc(pass)}</span>
+      <button class="copy-btn" onclick="copyText(this,'${esc(pass)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
+    </div>
+  </div>` : '';
+
+  const steps = (!state.isUpdate && isDefaultPass) ? t('quickStartSteps') : [];
   const stepsSection = steps.length ? `
   <div class="divider"></div>
   <div style="font-weight:600;margin-bottom:10px;font-size:.95rem" data-t="quickStart"></div>
@@ -1925,7 +1944,7 @@ function renderSuccess() {
   return `
 <div class="card step-panel">
   <div class="card-title" data-t="${titleKey}"></div>
-<div class="card-subtitle" data-t="${subKey}"></div>
+  <div class="card-subtitle" data-t="${subKey}"></div>
 
   ${securityWarning}
 
@@ -1939,13 +1958,7 @@ function renderSuccess() {
     </div>
   </div>
 
-  <div class="result-box">
-    <div class="result-label" data-t="labelDefaultPass"></div>
-    <div class="result-value" style="color:var(--red)">
-      <span>${esc(pass)}</span>
-      <button class="copy-btn" onclick="copyText(this,'${esc(pass)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
-    </div>
-  </div>
+  ${passSection}
 
   ${stepsSection}
 
