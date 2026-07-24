@@ -373,6 +373,22 @@ const T = {
     en: 'Automated Installer — v1.0'
   },
 
+  // Mode Selection
+  updateWorkerBtn: { fa: 'به‌روزرسانی کد ورکر', en: 'Update Worker Code' },
+  updateTitle: { fa: 'به‌روزرسانی نسخه نهان', en: 'Update Nahan Version' },
+  updateSub: { fa: 'جایگزینی کد ورکر فعلی با آخرین نسخه', en: 'Replace current Worker code with the latest version' },
+
+  savedPanelsTitle: { fa: 'پنل‌های ثبت‌شده شما', en: 'Your Saved Panels' },
+  quickUpdateBtn: { fa: '⚡ به‌روزرسانی سریع', en: '⚡ Quick Update' },
+  deletePanelBtn: { fa: 'حذف', en: 'Delete' },
+  lastUpdatedLabel: { fa: 'آخرین به‌روزرسانی:', en: 'Last updated:' },
+  noSavedPanels: { fa: 'هیچ پنل ذخیره‌شده‌ای یافت نشد', en: 'No saved panels found' },
+  
+  // Progress Steps for Update Mode
+  stepFetchD1Binding: { fa: 'دریافت تنظیمات و دیتابیس ورکر فعلی', en: 'Fetching existing Worker & DB configuration' },
+  updateSuccessTitle: { fa: 'به‌روزرسانی با موفقیت انجام شد!', en: 'Update Successful!' },
+  updateSuccessSub: { fa: 'کد ورکر شما به آخرین نسخه به‌روزرسانی شد.', en: 'Your Worker code has been updated to the latest version.' },
+
   // ── Step 1: Welcome ──
   welcomeTitle: { fa: 'به نصب‌کننده نهان خوش آمدید', en: 'Welcome to Nahan Installer' },
   welcomeSub: {
@@ -567,9 +583,10 @@ let currentStep = 0;
 const totalSteps = 6;
 
 // Default proxy URL — hosted by the Nahan project. Override in localStorage if self-hosting.
-const DEFAULT_PROXY_URL = 'https://nahan-installer.edge1-erpy.workers.dev';
+const DEFAULT_PROXY_URL = 'https://nahan-installer-proxy.iyebekhe.workers.dev';
 
 const state = {
+  isUpdate: false,
   apiToken: '',
   accountId: '',
   accountName: '',
@@ -1001,6 +1018,25 @@ async function verifyBindings() {
   return { ok: false };
 }
 
+async function fetchExistingWorkerBindings() {
+  console.log(`[Update] Fetching existing bindings for worker: ${state.workerName}`);
+  const path = `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/settings`;
+  const r = await cfFetch(path);
+  
+  if (r.success && r.result?.bindings) {
+    const d1Binding = r.result.bindings.find(b => b.name === 'IOT_DB' || b.type === 'd1');
+    if (d1Binding) {
+      state.dbId = d1Binding.id;
+      console.log(`[Update] Found existing D1 Binding ID: ${state.dbId}`);
+      return { ok: true, dbId: d1Binding.id };
+    }
+  }
+  
+  // If no binding found in settings, attempt to search account D1 DBs as fallback
+  console.warn('[Update] No D1 binding found in worker settings. Searching account D1 databases...');
+  return await findExistingD1();
+}
+
 async function enableWorkersDevUrl() {
   // Construct the workers.dev URL from the account's subdomain.
   // Subdomain enablement is done in deployWorker() via the services API.
@@ -1081,6 +1117,73 @@ async function verifyDeployment() {
 }
 
 // ══════════════════════════════════════════════════════════
+//  SAVED PANELS LOCALSTORAGE MANAGER
+// ══════════════════════════════════════════════════════════
+function getSavedPanels() {
+  try {
+    return JSON.parse(localStorage.getItem('nahan_saved_panels') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCurrentPanel() {
+  if (!state.workerName || !state.accountId || !state.apiToken) return;
+
+  const panels = getSavedPanels();
+  const id = `${state.workerName}_${state.accountId}`;
+  const existingIdx = panels.findIndex(p => p.id === id || p.workerName === state.workerName);
+
+  const entry = {
+    id: id,
+    workerName: state.workerName,
+    accountId: state.accountId,
+    apiToken: state.apiToken,
+    deployUrl: state.deployUrl,
+    dbName: state.dbName,
+    dbId: state.dbId,
+    apiRoute: state.apiRoute,
+    updatedAt: Date.now()
+  };
+
+  if (existingIdx >= 0) {
+    panels[existingIdx] = { ...panels[existingIdx], ...entry };
+  } else {
+    panels.unshift(entry);
+  }
+
+  localStorage.setItem('nahan_saved_panels', JSON.stringify(panels));
+  console.log('[Storage] Saved panel configuration to localStorage:', entry);
+}
+
+function deleteSavedPanel(id, event) {
+  if (event) event.stopPropagation();
+  let panels = getSavedPanels();
+  panels = panels.filter(p => p.id !== id && p.workerName !== id);
+  localStorage.setItem('nahan_saved_panels', JSON.stringify(panels));
+  renderStep(); // Refresh Welcome UI
+}
+
+function quickUpdatePanel(id) {
+  const panels = getSavedPanels();
+  const target = panels.find(p => p.id === id || p.workerName === id);
+  if (!target) return;
+
+  // Load saved credentials & settings into state
+  state.isUpdate = true;
+  state.workerName = target.workerName;
+  state.accountId = target.accountId;
+  state.apiToken = target.apiToken;
+  state.dbName = target.dbName || 'iot_db';
+  state.dbId = target.dbId || '';
+  state.apiRoute = target.apiRoute || 'sync';
+  state.deployUrl = target.deployUrl || '';
+
+  // Jump straight to connectivity check & credential validation
+  goStep(1);
+}
+
+// ══════════════════════════════════════════════════════════
 //  STEP RENDERERS
 // ══════════════════════════════════════════════════════════
 
@@ -1111,12 +1214,50 @@ function renderStep() {
 
 // ── Welcome ──
 function renderWelcome() {
+  const savedPanels = getSavedPanels();
+
+  let savedPanelsHtml = '';
+  if (savedPanels.length > 0) {
+    savedPanelsHtml = `
+    <div style="margin-top:24px;margin-bottom:20px">
+      <div style="font-weight:700;color:var(--cyan);margin-bottom:12px;font-size:1rem;display:flex;align-items:center;gap:8px">
+        <span>📱</span> <span data-t="savedPanelsTitle"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${savedPanels.map(p => {
+          const dateStr = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString(lang === 'fa' ? 'fa-IR' : 'en-US') : '';
+          return `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-weight:700;font-family:var(--font-mono);font-size:.95rem;color:var(--text)">${esc(p.workerName)}</div>
+              <div style="font-size:.78rem;color:var(--text2);margin-top:2px">
+                ${p.deployUrl ? `<a href="${esc(p.deployUrl)}" target="_blank" style="color:var(--cyan);text-decoration:none">${esc(p.deployUrl)}</a>` : ''}
+                ${dateStr ? ` • <span data-t="lastUpdatedLabel"></span> ${dateStr}` : ''}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="quickUpdatePanel('${esc(p.id)}')">
+                <span data-t="quickUpdateBtn"></span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="deleteSavedPanel('${esc(p.id)}', event)" style="color:var(--red);padding:6px 10px" title="${t('deletePanelBtn')}">
+                🗑️
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="divider"></div>`;
+  }
+
   return `
 <div class="card step-panel">
   <div class="card-title" data-t="welcomeTitle"></div>
   <div class="card-subtitle" data-t="welcomeSub"></div>
 
   <p style="color:var(--text2);font-size:.9rem;margin-bottom:20px" data-t="welcomeDesc"></p>
+
+  ${savedPanelsHtml}
 
   <div style="margin-bottom:20px">
     <div style="font-weight:600;margin-bottom:10px;font-size:.95rem" data-t="whatCreated"></div>
@@ -1137,10 +1278,17 @@ function renderWelcome() {
     <li class="perm-item"><span class="perm-icon">🌐</span><span data-t="permDNS"></span></li>
   </ul>
 
-  <div class="btn-group">
-    <button class="btn btn-primary" onclick="goStep(1)" data-t="letsStart"></button>
+  <div class="btn-group" style="flex-wrap:wrap;gap:10px">
+    <button class="btn btn-primary" onclick="startFlow(false)" data-t="letsStart"></button>
+    <button class="btn btn-secondary" onclick="startFlow(true)" data-t="updateWorkerBtn"></button>
   </div>
 </div>`;
+}
+
+// Add this helper function below renderWelcome()
+function startFlow(isUpdateMode) {
+  state.isUpdate = isUpdateMode;
+  goStep(1);
 }
 
 // ── Connectivity Test / Proxy Setup ──
@@ -1613,10 +1761,12 @@ function onAccountSelect() {
 
 // ── Configuration ──
 function renderConfig() {
+  const isUpdate = state.isUpdate;
+  
   return `
 <div class="card step-panel">
-  <div class="card-title" data-t="configTitle"></div>
-  <div class="card-subtitle" data-t="configSub"></div>
+  <div class="card-title">${isUpdate ? t('updateTitle') : t('configTitle')}</div>
+  <div class="card-subtitle">${isUpdate ? t('updateSub') : t('configSub')}</div>
 
   <div class="config-grid">
     <div class="form-group">
@@ -1625,14 +1775,17 @@ function renderConfig() {
              placeholder="nahan-core" spellcheck="false" style="direction:ltr;text-align:left">
       <div class="form-hint" data-t="hintWorker"></div>
     </div>
+    
+    ${!isUpdate ? `
     <div class="form-group">
       <label class="form-label" data-t="labelDB"></label>
       <input type="text" class="form-input" id="inpDB" value="${esc(state.dbName)}"
              placeholder="iot_db" spellcheck="false" style="direction:ltr;text-align:left">
       <div class="form-hint" data-t="hintDB"></div>
-    </div>
+    </div>` : ''}
   </div>
 
+  ${!isUpdate ? `
   <div class="form-group">
     <label class="form-label" data-t="labelPassword"></label>
     <input type="password" class="form-input" id="inpPassword" value="${esc(state.password)}"
@@ -1662,7 +1815,7 @@ function renderConfig() {
         <div class="form-hint" data-t="hintTgAdmin"></div>
       </div>
     </div>
-  </details>
+  </details>` : ''}
 
   <div id="configAlert"></div>
 
@@ -1683,11 +1836,22 @@ function handleConfigNext() {
   }
 
   state.workerName = workerName;
-  state.dbName = document.getElementById('inpDB').value.trim() || 'iot_db';
-  state.password = document.getElementById('inpPassword').value;
-  state.apiRoute = document.getElementById('inpRoute').value.trim() || 'sync';
-  state.tgToken = document.getElementById('inpTgToken').value.trim();
-  state.tgAdminId = document.getElementById('inpTgAdmin').value.trim();
+
+  // Read fields safely if rendered
+  const dbInput = document.getElementById('inpDB');
+  if (dbInput) state.dbName = dbInput.value.trim() || 'iot_db';
+
+  const passInput = document.getElementById('inpPassword');
+  if (passInput) state.password = passInput.value;
+
+  const routeInput = document.getElementById('inpRoute');
+  if (routeInput) state.apiRoute = routeInput.value.trim() || 'sync';
+
+  const tgTokenInput = document.getElementById('inpTgToken');
+  if (tgTokenInput) state.tgToken = tgTokenInput.value.trim();
+
+  const tgAdminInput = document.getElementById('inpTgAdmin');
+  if (tgAdminInput) state.tgAdminId = tgAdminInput.value.trim();
 
   goStep(4);
 }
@@ -1769,19 +1933,34 @@ async function runDeployment() {
   const verLabel = state.workerVersion ? `v${state.workerVersion}` : fetchResult.source;
   setProgress('prog-fetch', 'done', verLabel);
 
-  // Step 2: Create D1
+  // Step 2: D1 Database handling
   setProgress('prog-d1', 'active');
-  const d1Result = await createD1Database();
-  if (!d1Result.ok) {
-    setProgress('prog-d1', 'error');
-    alertEl().innerHTML = alert('error', `${t('errD1')}: ${d1Result.msg}`);
-    showBtns();
-    return;
+  
+  if (state.isUpdate) {
+    // UPDATE MODE: Fetch existing D1 binding from Worker configuration
+    setProgress('prog-d1', 'active', t('stepFetchD1Binding'));
+    const d1Result = await fetchExistingWorkerBindings();
+    if (!d1Result.ok) {
+      setProgress('prog-d1', 'error');
+      alertEl().innerHTML = alert('error', `Could not find existing D1 Database for '${state.workerName}'. ${d1Result.msg || ''}`);
+      showBtns();
+      return;
+    }
+    setProgress('prog-d1', 'done', `Reusing DB ID: ${state.dbId}`);
+  } else {
+    // FRESH INSTALL MODE: Create/Find D1 Database
+    const d1Result = await createD1Database();
+    if (!d1Result.ok) {
+      setProgress('prog-d1', 'error');
+      alertEl().innerHTML = alert('error', `${t('errD1')}: ${d1Result.msg}`);
+      showBtns();
+      return;
+    }
+    const d1Msg = d1Result.existed ? t('stepD1Exists') : state.dbId;
+    setProgress('prog-d1', 'done', d1Msg);
   }
-  const d1Msg = d1Result.existed ? t('stepD1Exists') : state.dbId;
-  setProgress('prog-d1', 'done', d1Msg);
 
-  // Step 3: Deploy Worker (stable PUT + services API subdomain enable)
+  // Step 3: Deploy Worker
   setProgress('prog-deploy', 'active');
   const deployResult = await deployWorker();
   if (!deployResult.ok) {
@@ -1803,35 +1982,18 @@ async function runDeployment() {
     }
   }
 
-  // Step 4: Wait for propagation then verify with retries
+  // Step 4: Verification
   setProgress('prog-verify', 'active');
-  
-  // Wait for Cloudflare edge propagation
-  const waitMs = 8000; // 8 seconds initial wait
-  setProgress('prog-verify', 'active', lang === 'fa' ? 'صبر کنید در حال انتشار...' : 'Waiting for propagation...');
+  const waitMs = 5000;
   await new Promise(resolve => setTimeout(resolve, waitMs));
   
-  // Retry verification up to 3 times
-  let verified = false;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    console.log(`[Verify] Attempt ${attempt}/3...`);
-    const verifyResult = await verifyDeployment();
-    if (verifyResult.ok) {
-      verified = true;
-      break;
-    }
-    if (attempt < 3) {
-      setProgress('prog-verify', 'active', lang === 'fa' 
-        ? `تلاش ${attempt}/3 — تلاش مجدد...` 
-        : `Attempt ${attempt}/3 — retrying...`);
-      await new Promise(resolve => setTimeout(resolve, 5000)); // 5s between retries
-    }
-  }
-  
+  const verifyResult = await verifyDeployment();
   const bindingCheck = await verifyBindings();
   const bindingInfo = bindingCheck.ok ? 'D1 ✓' : '';
   const urlInfo = state.deployUrl || 'No URL';
   setProgress('prog-verify', 'done', `${urlInfo}${bindingInfo ? ' | ' + bindingInfo : ''}`);
+
+  saveCurrentPanel();
 
   // Done!
   setTimeout(() => goStep(5), 600);
@@ -1843,6 +2005,9 @@ function renderSuccess() {
   const isDefaultPass = !state.password || state.password === 'admin';
   const hasUrl = !!state.deployUrl;
   const panelUrl = hasUrl ? `${state.deployUrl}/${state.apiRoute}/dash` : '';
+
+  const titleKey = state.isUpdate ? 'updateSuccessTitle' : 'successTitle';
+  const subKey = state.isUpdate ? 'updateSuccessSub' : 'successSub';
 
   let urlSection;
   if (hasUrl) {
@@ -1862,15 +2027,23 @@ function renderSuccess() {
   </div>`;
   }
 
-  // Only show security warning if using default password
-  const securityWarning = isDefaultPass ? `
+  // Only show password card, security warning, and quick start guide during FRESH INSTALLS
+  const securityWarning = (!state.isUpdate && isDefaultPass) ? `
   <div class="alert alert-warn">
     <span class="alert-icon">⚠️</span>
     <span data-t="securityWarning"></span>
   </div>` : '';
 
-  // Only show quick start steps if using default password
-  const steps = isDefaultPass ? t('quickStartSteps') : [];
+  const passSection = (!state.isUpdate) ? `
+  <div class="result-box">
+    <div class="result-label" data-t="labelDefaultPass"></div>
+    <div class="result-value" style="color:var(--red)">
+      <span>${esc(pass)}</span>
+      <button class="copy-btn" onclick="copyText(this,'${esc(pass)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
+    </div>
+  </div>` : '';
+
+  const steps = (!state.isUpdate && isDefaultPass) ? t('quickStartSteps') : [];
   const stepsSection = steps.length ? `
   <div class="divider"></div>
   <div style="font-weight:600;margin-bottom:10px;font-size:.95rem" data-t="quickStart"></div>
@@ -1880,8 +2053,8 @@ function renderSuccess() {
 
   return `
 <div class="card step-panel">
-  <div class="card-title" data-t="successTitle"></div>
-  <div class="card-subtitle" data-t="successSub"></div>
+  <div class="card-title" data-t="${titleKey}"></div>
+  <div class="card-subtitle" data-t="${subKey}"></div>
 
   ${securityWarning}
 
@@ -1895,13 +2068,7 @@ function renderSuccess() {
     </div>
   </div>
 
-  <div class="result-box">
-    <div class="result-label" data-t="labelDefaultPass"></div>
-    <div class="result-value" style="color:var(--red)">
-      <span>${esc(pass)}</span>
-      <button class="copy-btn" onclick="copyText(this,'${esc(pass)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
-    </div>
-  </div>
+  ${passSection}
 
   ${stepsSection}
 
@@ -1946,6 +2113,7 @@ function copyText(btn, text) {
 }
 
 function resetAll() {
+  state.isUpdate = false;
   state.apiToken = '';
   state.accountId = '';
   state.accountName = '';

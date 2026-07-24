@@ -1,0 +1,25 @@
+name: Deploy Proxy Worker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'proxy/**'
+      - '.github/workflows/deploy-proxy.yml'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy Proxy to Cloudflare Workers
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Deploy Proxy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: 'proxy'
