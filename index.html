@@ -373,6 +373,16 @@ const T = {
     en: 'Automated Installer — v1.0'
   },
 
+  // Mode Selection
+  updateWorkerBtn: { fa: 'به‌روزرسانی کد ورکر', en: 'Update Worker Code' },
+  updateTitle: { fa: 'به‌روزرسانی نسخه نهان', en: 'Update Nahan Version' },
+  updateSub: { fa: 'جایگزینی کد ورکر فعلی با آخرین نسخه', en: 'Replace current Worker code with the latest version' },
+  
+  // Progress Steps for Update Mode
+  stepFetchD1Binding: { fa: 'دریافت تنظیمات و دیتابیس ورکر فعلی', en: 'Fetching existing Worker & DB configuration' },
+  updateSuccessTitle: { fa: 'به‌روزرسانی با موفقیت انجام شد!', en: 'Update Successful!' },
+  updateSuccessSub: { fa: 'کد ورکر شما به آخرین نسخه به‌روزرسانی شد.', en: 'Your Worker code has been updated to the latest version.' },
+
   // ── Step 1: Welcome ──
   welcomeTitle: { fa: 'به نصب‌کننده نهان خوش آمدید', en: 'Welcome to Nahan Installer' },
   welcomeSub: {
@@ -570,6 +580,7 @@ const totalSteps = 6;
 const DEFAULT_PROXY_URL = 'https://nahan-installer.edge1-erpy.workers.dev';
 
 const state = {
+  isUpdate: false,
   apiToken: '',
   accountId: '',
   accountName: '',
@@ -1001,6 +1012,25 @@ async function verifyBindings() {
   return { ok: false };
 }
 
+async function fetchExistingWorkerBindings() {
+  console.log(`[Update] Fetching existing bindings for worker: ${state.workerName}`);
+  const path = `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/settings`;
+  const r = await cfFetch(path);
+  
+  if (r.success && r.result?.bindings) {
+    const d1Binding = r.result.bindings.find(b => b.name === 'IOT_DB' || b.type === 'd1');
+    if (d1Binding) {
+      state.dbId = d1Binding.id;
+      console.log(`[Update] Found existing D1 Binding ID: ${state.dbId}`);
+      return { ok: true, dbId: d1Binding.id };
+    }
+  }
+  
+  // If no binding found in settings, attempt to search account D1 DBs as fallback
+  console.warn('[Update] No D1 binding found in worker settings. Searching account D1 databases...');
+  return await findExistingD1();
+}
+
 async function enableWorkersDevUrl() {
   // Construct the workers.dev URL from the account's subdomain.
   // Subdomain enablement is done in deployWorker() via the services API.
@@ -1137,10 +1167,18 @@ function renderWelcome() {
     <li class="perm-item"><span class="perm-icon">🌐</span><span data-t="permDNS"></span></li>
   </ul>
 
-  <div class="btn-group">
-    <button class="btn btn-primary" onclick="goStep(1)" data-t="letsStart"></button>
+  <!-- UPDATED BUTTON GROUP -->
+  <div class="btn-group" style="flex-wrap:wrap;gap:10px">
+    <button class="btn btn-primary" onclick="startFlow(false)" data-t="letsStart"></button>
+    <button class="btn btn-secondary" onclick="startFlow(true)" data-t="updateWorkerBtn"></button>
   </div>
 </div>`;
+}
+
+// Add this helper function below renderWelcome()
+function startFlow(isUpdateMode) {
+  state.isUpdate = isUpdateMode;
+  goStep(1);
 }
 
 // ── Connectivity Test / Proxy Setup ──
@@ -1613,10 +1651,12 @@ function onAccountSelect() {
 
 // ── Configuration ──
 function renderConfig() {
+  const isUpdate = state.isUpdate;
+  
   return `
 <div class="card step-panel">
-  <div class="card-title" data-t="configTitle"></div>
-  <div class="card-subtitle" data-t="configSub"></div>
+  <div class="card-title">${isUpdate ? t('updateTitle') : t('configTitle')}</div>
+  <div class="card-subtitle">${isUpdate ? t('updateSub') : t('configSub')}</div>
 
   <div class="config-grid">
     <div class="form-group">
@@ -1625,12 +1665,14 @@ function renderConfig() {
              placeholder="nahan-core" spellcheck="false" style="direction:ltr;text-align:left">
       <div class="form-hint" data-t="hintWorker"></div>
     </div>
+    
+    ${!isUpdate ? `
     <div class="form-group">
       <label class="form-label" data-t="labelDB"></label>
       <input type="text" class="form-input" id="inpDB" value="${esc(state.dbName)}"
              placeholder="iot_db" spellcheck="false" style="direction:ltr;text-align:left">
       <div class="form-hint" data-t="hintDB"></div>
-    </div>
+    </div>` : ''}
   </div>
 
   <div class="form-group">
@@ -1683,7 +1725,10 @@ function handleConfigNext() {
   }
 
   state.workerName = workerName;
-  state.dbName = document.getElementById('inpDB').value.trim() || 'iot_db';
+  const dbInput = document.getElementById('inpDB');
+  if (dbInput) {
+    state.dbName = dbInput.value.trim() || 'iot_db';
+  }
   state.password = document.getElementById('inpPassword').value;
   state.apiRoute = document.getElementById('inpRoute').value.trim() || 'sync';
   state.tgToken = document.getElementById('inpTgToken').value.trim();
@@ -1769,19 +1814,34 @@ async function runDeployment() {
   const verLabel = state.workerVersion ? `v${state.workerVersion}` : fetchResult.source;
   setProgress('prog-fetch', 'done', verLabel);
 
-  // Step 2: Create D1
+  // Step 2: D1 Database handling
   setProgress('prog-d1', 'active');
-  const d1Result = await createD1Database();
-  if (!d1Result.ok) {
-    setProgress('prog-d1', 'error');
-    alertEl().innerHTML = alert('error', `${t('errD1')}: ${d1Result.msg}`);
-    showBtns();
-    return;
+  
+  if (state.isUpdate) {
+    // UPDATE MODE: Fetch existing D1 binding from Worker configuration
+    setProgress('prog-d1', 'active', t('stepFetchD1Binding'));
+    const d1Result = await fetchExistingWorkerBindings();
+    if (!d1Result.ok) {
+      setProgress('prog-d1', 'error');
+      alertEl().innerHTML = alert('error', `Could not find existing D1 Database for '${state.workerName}'. ${d1Result.msg || ''}`);
+      showBtns();
+      return;
+    }
+    setProgress('prog-d1', 'done', `Reusing DB ID: ${state.dbId}`);
+  } else {
+    // FRESH INSTALL MODE: Create/Find D1 Database
+    const d1Result = await createD1Database();
+    if (!d1Result.ok) {
+      setProgress('prog-d1', 'error');
+      alertEl().innerHTML = alert('error', `${t('errD1')}: ${d1Result.msg}`);
+      showBtns();
+      return;
+    }
+    const d1Msg = d1Result.existed ? t('stepD1Exists') : state.dbId;
+    setProgress('prog-d1', 'done', d1Msg);
   }
-  const d1Msg = d1Result.existed ? t('stepD1Exists') : state.dbId;
-  setProgress('prog-d1', 'done', d1Msg);
 
-  // Step 3: Deploy Worker (stable PUT + services API subdomain enable)
+  // Step 3: Deploy Worker
   setProgress('prog-deploy', 'active');
   const deployResult = await deployWorker();
   if (!deployResult.ok) {
@@ -1803,31 +1863,12 @@ async function runDeployment() {
     }
   }
 
-  // Step 4: Wait for propagation then verify with retries
+  // Step 4: Verification
   setProgress('prog-verify', 'active');
-  
-  // Wait for Cloudflare edge propagation
-  const waitMs = 8000; // 8 seconds initial wait
-  setProgress('prog-verify', 'active', lang === 'fa' ? 'صبر کنید در حال انتشار...' : 'Waiting for propagation...');
+  const waitMs = 5000;
   await new Promise(resolve => setTimeout(resolve, waitMs));
   
-  // Retry verification up to 3 times
-  let verified = false;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    console.log(`[Verify] Attempt ${attempt}/3...`);
-    const verifyResult = await verifyDeployment();
-    if (verifyResult.ok) {
-      verified = true;
-      break;
-    }
-    if (attempt < 3) {
-      setProgress('prog-verify', 'active', lang === 'fa' 
-        ? `تلاش ${attempt}/3 — تلاش مجدد...` 
-        : `Attempt ${attempt}/3 — retrying...`);
-      await new Promise(resolve => setTimeout(resolve, 5000)); // 5s between retries
-    }
-  }
-  
+  const verifyResult = await verifyDeployment();
   const bindingCheck = await verifyBindings();
   const bindingInfo = bindingCheck.ok ? 'D1 ✓' : '';
   const urlInfo = state.deployUrl || 'No URL';
@@ -1843,6 +1884,9 @@ function renderSuccess() {
   const isDefaultPass = !state.password || state.password === 'admin';
   const hasUrl = !!state.deployUrl;
   const panelUrl = hasUrl ? `${state.deployUrl}/${state.apiRoute}/dash` : '';
+
+  const titleKey = state.isUpdate ? 'updateSuccessTitle' : 'successTitle';
+  const subKey = state.isUpdate ? 'updateSuccessSub' : 'successSub';
 
   let urlSection;
   if (hasUrl) {
@@ -1880,8 +1924,8 @@ function renderSuccess() {
 
   return `
 <div class="card step-panel">
-  <div class="card-title" data-t="successTitle"></div>
-  <div class="card-subtitle" data-t="successSub"></div>
+  <div class="card-title" data-t="${titleKey}"></div>
+<div class="card-subtitle" data-t="${subKey}"></div>
 
   ${securityWarning}
 
@@ -1946,6 +1990,7 @@ function copyText(btn, text) {
 }
 
 function resetAll() {
+  state.isUpdate = false;
   state.apiToken = '';
   state.accountId = '';
   state.accountName = '';
