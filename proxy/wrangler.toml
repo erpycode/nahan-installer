@@ -1,0 +1,7 @@
+name = "nahan-installer-proxy"
+main = "src/index.js"
+compatibility_date = "2024-09-22"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
