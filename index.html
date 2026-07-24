@@ -377,6 +377,12 @@ const T = {
   updateWorkerBtn: { fa: 'به‌روزرسانی کد ورکر', en: 'Update Worker Code' },
   updateTitle: { fa: 'به‌روزرسانی نسخه نهان', en: 'Update Nahan Version' },
   updateSub: { fa: 'جایگزینی کد ورکر فعلی با آخرین نسخه', en: 'Replace current Worker code with the latest version' },
+
+  savedPanelsTitle: { fa: 'پنل‌های ثبت‌شده شما', en: 'Your Saved Panels' },
+  quickUpdateBtn: { fa: '⚡ به‌روزرسانی سریع', en: '⚡ Quick Update' },
+  deletePanelBtn: { fa: 'حذف', en: 'Delete' },
+  lastUpdatedLabel: { fa: 'آخرین به‌روزرسانی:', en: 'Last updated:' },
+  noSavedPanels: { fa: 'هیچ پنل ذخیره‌شده‌ای یافت نشد', en: 'No saved panels found' },
   
   // Progress Steps for Update Mode
   stepFetchD1Binding: { fa: 'دریافت تنظیمات و دیتابیس ورکر فعلی', en: 'Fetching existing Worker & DB configuration' },
@@ -1111,6 +1117,73 @@ async function verifyDeployment() {
 }
 
 // ══════════════════════════════════════════════════════════
+//  SAVED PANELS LOCALSTORAGE MANAGER
+// ══════════════════════════════════════════════════════════
+function getSavedPanels() {
+  try {
+    return JSON.parse(localStorage.getItem('nahan_saved_panels') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCurrentPanel() {
+  if (!state.workerName || !state.accountId || !state.apiToken) return;
+
+  const panels = getSavedPanels();
+  const id = `${state.workerName}_${state.accountId}`;
+  const existingIdx = panels.findIndex(p => p.id === id || p.workerName === state.workerName);
+
+  const entry = {
+    id: id,
+    workerName: state.workerName,
+    accountId: state.accountId,
+    apiToken: state.apiToken,
+    deployUrl: state.deployUrl,
+    dbName: state.dbName,
+    dbId: state.dbId,
+    apiRoute: state.apiRoute,
+    updatedAt: Date.now()
+  };
+
+  if (existingIdx >= 0) {
+    panels[existingIdx] = { ...panels[existingIdx], ...entry };
+  } else {
+    panels.unshift(entry);
+  }
+
+  localStorage.setItem('nahan_saved_panels', JSON.stringify(panels));
+  console.log('[Storage] Saved panel configuration to localStorage:', entry);
+}
+
+function deleteSavedPanel(id, event) {
+  if (event) event.stopPropagation();
+  let panels = getSavedPanels();
+  panels = panels.filter(p => p.id !== id && p.workerName !== id);
+  localStorage.setItem('nahan_saved_panels', JSON.stringify(panels));
+  renderStep(); // Refresh Welcome UI
+}
+
+function quickUpdatePanel(id) {
+  const panels = getSavedPanels();
+  const target = panels.find(p => p.id === id || p.workerName === id);
+  if (!target) return;
+
+  // Load saved credentials & settings into state
+  state.isUpdate = true;
+  state.workerName = target.workerName;
+  state.accountId = target.accountId;
+  state.apiToken = target.apiToken;
+  state.dbName = target.dbName || 'iot_db';
+  state.dbId = target.dbId || '';
+  state.apiRoute = target.apiRoute || 'sync';
+  state.deployUrl = target.deployUrl || '';
+
+  // Jump straight to connectivity check & credential validation
+  goStep(1);
+}
+
+// ══════════════════════════════════════════════════════════
 //  STEP RENDERERS
 // ══════════════════════════════════════════════════════════
 
@@ -1141,12 +1214,50 @@ function renderStep() {
 
 // ── Welcome ──
 function renderWelcome() {
+  const savedPanels = getSavedPanels();
+
+  let savedPanelsHtml = '';
+  if (savedPanels.length > 0) {
+    savedPanelsHtml = `
+    <div style="margin-top:24px;margin-bottom:20px">
+      <div style="font-weight:700;color:var(--cyan);margin-bottom:12px;font-size:1rem;display:flex;align-items:center;gap:8px">
+        <span>📱</span> <span data-t="savedPanelsTitle"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${savedPanels.map(p => {
+          const dateStr = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString(lang === 'fa' ? 'fa-IR' : 'en-US') : '';
+          return `
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="font-weight:700;font-family:var(--font-mono);font-size:.95rem;color:var(--text)">${esc(p.workerName)}</div>
+              <div style="font-size:.78rem;color:var(--text2);margin-top:2px">
+                ${p.deployUrl ? `<a href="${esc(p.deployUrl)}" target="_blank" style="color:var(--cyan);text-decoration:none">${esc(p.deployUrl)}</a>` : ''}
+                ${dateStr ? ` • <span data-t="lastUpdatedLabel"></span> ${dateStr}` : ''}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="quickUpdatePanel('${esc(p.id)}')">
+                <span data-t="quickUpdateBtn"></span>
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="deleteSavedPanel('${esc(p.id)}', event)" style="color:var(--red);padding:6px 10px" title="${t('deletePanelBtn')}">
+                🗑️
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="divider"></div>`;
+  }
+
   return `
 <div class="card step-panel">
   <div class="card-title" data-t="welcomeTitle"></div>
   <div class="card-subtitle" data-t="welcomeSub"></div>
 
   <p style="color:var(--text2);font-size:.9rem;margin-bottom:20px" data-t="welcomeDesc"></p>
+
+  ${savedPanelsHtml}
 
   <div style="margin-bottom:20px">
     <div style="font-weight:600;margin-bottom:10px;font-size:.95rem" data-t="whatCreated"></div>
@@ -1167,7 +1278,6 @@ function renderWelcome() {
     <li class="perm-item"><span class="perm-icon">🌐</span><span data-t="permDNS"></span></li>
   </ul>
 
-  <!-- UPDATED BUTTON GROUP -->
   <div class="btn-group" style="flex-wrap:wrap;gap:10px">
     <button class="btn btn-primary" onclick="startFlow(false)" data-t="letsStart"></button>
     <button class="btn btn-secondary" onclick="startFlow(true)" data-t="updateWorkerBtn"></button>
@@ -1681,7 +1791,7 @@ function renderConfig() {
     <input type="password" class="form-input" id="inpPassword" value="${esc(state.password)}"
            placeholder="admin" autocomplete="off" spellcheck="false">
     <div class="form-hint" data-t="hintPassword"></div>
-  </div>` : ''}
+  </div>
 
   <details style="margin-bottom:20px">
     <summary style="cursor:pointer;color:var(--cyan);font-size:.9rem;font-weight:600;padding:8px 0" data-t="advSettings"></summary>
@@ -1705,7 +1815,7 @@ function renderConfig() {
         <div class="form-hint" data-t="hintTgAdmin"></div>
       </div>
     </div>
-  </details>
+  </details>` : ''}
 
   <div id="configAlert"></div>
 
@@ -1727,23 +1837,21 @@ function handleConfigNext() {
 
   state.workerName = workerName;
 
-  // Read DB Name if visible
+  // Read fields safely if rendered
   const dbInput = document.getElementById('inpDB');
-  if (dbInput) {
-    state.dbName = dbInput.value.trim() || 'iot_db';
-  }
+  if (dbInput) state.dbName = dbInput.value.trim() || 'iot_db';
 
-  // Read Password if visible
   const passInput = document.getElementById('inpPassword');
-  if (passInput) {
-    state.password = passInput.value;
-  } else {
-    state.password = ''; // Don't modify password in update mode
-  }
+  if (passInput) state.password = passInput.value;
 
-  state.apiRoute = document.getElementById('inpRoute').value.trim() || 'sync';
-  state.tgToken = document.getElementById('inpTgToken').value.trim();
-  state.tgAdminId = document.getElementById('inpTgAdmin').value.trim();
+  const routeInput = document.getElementById('inpRoute');
+  if (routeInput) state.apiRoute = routeInput.value.trim() || 'sync';
+
+  const tgTokenInput = document.getElementById('inpTgToken');
+  if (tgTokenInput) state.tgToken = tgTokenInput.value.trim();
+
+  const tgAdminInput = document.getElementById('inpTgAdmin');
+  if (tgAdminInput) state.tgAdminId = tgAdminInput.value.trim();
 
   goStep(4);
 }
@@ -1884,6 +1992,8 @@ async function runDeployment() {
   const bindingInfo = bindingCheck.ok ? 'D1 ✓' : '';
   const urlInfo = state.deployUrl || 'No URL';
   setProgress('prog-verify', 'done', `${urlInfo}${bindingInfo ? ' | ' + bindingInfo : ''}`);
+
+  saveCurrentPanel();
 
   // Done!
   setTimeout(() => goStep(5), 600);
