@@ -211,6 +211,17 @@ textarea.form-input { min-height: 100px; resize: vertical; }
   overflow-x: auto; margin: 10px 0; line-height: 1.5; direction: ltr; text-align: left;
 }
 
+.steps-list {
+  padding-inline-start: 22px;
+  margin: 14px 0;
+  color: var(--text);
+  font-size: .88rem;
+  line-height: 1.8;
+}
+.steps-list > li {
+  margin-bottom: 14px;
+}
+
 .conn-status {
   display: flex; align-items: center; gap: 10px; padding: 14px;
   border-radius: var(--radius); margin: 16px 0; font-size: .9rem;
@@ -490,34 +501,44 @@ const T = {
   errCfCors: { fa: 'دسترسی مستقیم به Cloudflare API از مرورگر مسدود شده. از VPN استفاده کنید یا مرورگر دیگری امتحان کنید.', en: 'Direct browser access to Cloudflare API is blocked. Try a VPN or different browser.' },
 
   // ── Connectivity / Proxy ──
-  connTitle: { fa: 'بررسی اتصال', en: 'Connectivity Check' },
-  connSub: { fa: 'در حال آزمایش اتصال مستقیم به Cloudflare API...', en: 'Testing direct connection to Cloudflare API...' },
-  connTesting: { fa: 'در حال آزمایش اتصال...', en: 'Testing connection...' },
-  connOk: { fa: 'اتصال مستقیم به Cloudflare API برقرار است. ادامه...', en: 'Direct connection to Cloudflare API works. Continuing...' },
-  connFail: { fa: 'اتصال مستقیم به Cloudflare API از مرورگر شما ممکن نیست.', en: 'Direct connection to Cloudflare API from your browser is not possible.' },
-  connFailReason: { fa: 'دلیل: مرورگر شما اجازه دسترسی مستقیم به API را نمی‌دهد (CORS).', en: 'Reason: Your browser blocks direct access to the API (CORS).' },
-  connProxyNeeded: { fa: 'برای حل این مشکل، یک Worker پروکسی روی حساب Cloudflare خود مستقر کنید:', en: 'To fix this, deploy a proxy Worker on your Cloudflare account:' },
-  useCustomProxy: { fa: 'استفاده از پروکسی شخصی', en: 'Use Custom Proxy' },
-  customProxyTitle: { fa: 'پروکسی شخصی', en: 'Custom Proxy' },
-  customProxyDesc: { fa: 'آدرس Worker پروکسی خود را وارد کنید', en: 'Enter your proxy Worker URL' },
-  customProxyBtn: { fa: 'اتصال و نصب', en: 'Connect & Install' },
+  connTitle: { fa: 'تنظیم پروکسی و بررسی اتصال', en: 'Proxy Setup & Connectivity' },
+  connSub: { fa: 'جهت جلوگیری از خطای CORS و ارور ۱۱۰۱، پروکسی شخصی خود را تنظیم کنید', en: 'Set up your personal proxy to avoid CORS and 1101 errors' },
+  connTesting: { fa: 'در حال بررسی وضعیت اتصال...', en: 'Checking connection status...' },
+  connOk: { fa: 'اتصال با موفقیت برقرار شد. در حال انتقال...', en: 'Connection established successfully. Proceeding...' },
+  connFail: { fa: 'اتصال مستقیم از مرورگر مسدود است (CORS).', en: 'Direct browser access blocked (CORS).' },
+  connFailReason: { fa: 'مرورگرها به دلایل امنیتی (CORS) اجازه ارتباط مستقیم با API کلودفلر را نمی‌دهند.', en: 'Browsers block direct requests to Cloudflare API due to CORS policy.' },
+  connProxyNeeded: { fa: 'جهت دور زدن محدودیت CORS مرورگر، طبق راهنمای زیر یک Worker پروکسی شخصی بسازید:', en: 'To bypass browser CORS, deploy a personal proxy Worker following the guide below:' },
+  useCustomProxy: { fa: 'استفاده از پروکسی شخصی', en: 'Use Personal Proxy' },
+  customProxyTitle: { fa: 'پروکسی شخصی', en: 'Personal Proxy' },
+  customProxyDesc: { fa: 'آدرس Worker پروکسی ساخته‌شده خود را وارد کنید', en: 'Enter your deployed proxy Worker URL' },
+  customProxyBtn: { fa: 'اتصال به پروکسی شخصی', en: 'Connect to Personal Proxy' },
 
-  proxySetupTitle: { fa: 'تنظیم Installer Proxy', en: 'Installer Proxy Setup' },
-  proxyStep1: { fa: 'روی لینک زیر کلیک کنید تا Cloudflare Dashboard باز شود:', en: 'Click the link below to open Cloudflare Dashboard:' },
-  proxyStep2: { fa: 'یک Worker جدید بسازید (مثلاً nahan-installer-proxy):', en: 'Create a new Worker (e.g. nahan-installer-proxy):' },
-  proxyStep3: { fa: 'کد زیر را کپی و جایگزین کد پیش‌فرض Worker کنید:', en: 'Copy the code below and replace the default Worker code:' },
-  proxyStep4: { fa: 'روی "Save and Deploy" کلیک کنید:', en: 'Click "Save and Deploy":' },
-  proxyStep5: { fa: 'آدرس Worker مستقر شده را در زیر وارد کنید:', en: 'Enter the deployed Worker URL below:' },
+  proxyWarn1101Title: { fa: '⚠️ اخطار مهم: خطای ۱۱۰۱ در پروکسی پیش‌فرض', en: '⚠️ Important Notice: Error 1101 with Default Proxy' },
+  proxyWarn1101Desc: {
+    fa: 'استفاده از پروکسی اشتراکی و عمومی پیش‌فرض به دلیل سقف ترافیک همزمان و محدودیت ساب‌ریکوئست‌های کلودفلر ممکن است با <b>خطای ۱۱۰۱ (Worker threw exception)</b> مواجه شود. <b>اکیداً پیشنهاد می‌شود یک پروکسی شخصی رایگان بسازید.</b>',
+    en: 'Using the shared public default proxy frequently triggers <b>Error 1101 (Worker threw exception)</b> due to Cloudflare subrequest/traffic limits. <b>Creating your own free personal proxy is strongly recommended.</b>'
+  },
+
+  proxySetupTitle: { fa: '🚀 مراحل ساخت پروکسی شخصی (پیشنهادی - کمتر از ۱ دقیقه)', en: '🚀 Create Personal Proxy Steps (Recommended - < 1 min)' },
+  proxyStep1: { fa: 'روی دکمه زیر کلیک کنید تا بخش ساخت Worker در داشبورد کلودفلر باز شود:', en: 'Click the button below to open Worker creation in Cloudflare Dashboard:' },
+  proxyStep2: { fa: 'یک نام دلخواه انتخاب کرده و Worker را ایجاد کنید (مثلاً nahan-proxy):', en: 'Choose any name and create the Worker (e.g. nahan-proxy):' },
+  proxyStep3: { fa: 'کد زیر را کپی کرده و جایگزین کدهای پیش‌فرض Worker کنید:', en: 'Copy the code below and replace the default Worker code:' },
+  proxyStep4: { fa: 'روی دکمه «Deploy» کلیک کنید:', en: 'Click "Deploy":' },
+  proxyStep5: { fa: 'آدرس دامنه workers.dev ورکر ساخته‌شده را در کادر زیر وارد کنید:', en: 'Enter the deployed Worker URL below:' },
   proxyCopied: { fa: 'کد پروکسی کپی شد!', en: 'Proxy code copied!' },
-  proxyUrlPlaceholder: { fa: 'https://nahan-installer-proxy.<your-subdomain>.workers.dev', en: 'https://nahan-installer-proxy.<your-subdomain>.workers.dev' },
+  proxyUrlPlaceholder: { fa: 'https://nahan-proxy.<subdomain>.workers.dev', en: 'https://nahan-proxy.<subdomain>.workers.dev' },
   proxyConnecting: { fa: 'در حال اتصال به پروکسی...', en: 'Connecting to proxy...' },
-  proxyConnected: { fa: 'اتصال به پروکسی برقرار شد!', en: 'Proxy connected successfully!' },
-  proxyFailed: { fa: 'اتصال به پروکسی ناموفق بود. آدرس را بررسی کنید.', en: 'Failed to connect to proxy. Check the URL.' },
-  openCfDashboard: { fa: 'باز کردن Cloudflare Dashboard', en: 'Open Cloudflare Dashboard' },
+  proxyConnected: { fa: 'اتصال به پروکسی با موفقیت برقرار شد!', en: 'Proxy connected successfully!' },
+  proxyFailed: { fa: 'اتصال به پروکسی ناموفق بود. لطفاً آدرس را بررسی کنید.', en: 'Failed to connect to proxy. Please check the URL.' },
+  openCfDashboard: { fa: 'باز کردن داشبورد کلودفلر (ساخت Worker)', en: 'Open Cloudflare Dashboard (Create Worker)' },
   copyProxyCode: { fa: 'کپی کد پروکسی', en: 'Copy Proxy Code' },
-  connectProxy: { fa: 'اتصال به پروکسی', en: 'Connect to Proxy' },
+  connectProxy: { fa: 'اتصال به پروکسی و ادامه', en: 'Connect & Continue' },
+  useDefaultProxyOption: { fa: 'استفاده از پروکسی عمومی پیش‌فرض (با ریسک خطای ۱۱۰۱)', en: 'Use Shared Default Proxy (Prone to Error 1101)' },
+  defaultProxyWarningDetail: { fa: 'پروکسی پیش‌فرض به دلیل ترافیک اشتراکی ممکن است در زمان استقرار با خطای ۱۱۰۱ متوقف شود.', en: 'The default proxy may fail with Error 1101 during deployment due to heavy shared traffic.' },
+  connectDefaultBtn: { fa: 'تلاش با پروکسی پیش‌فرض', en: 'Try Default Proxy' },
   skipProxy: { fa: 'تلاش مجدد اتصال مستقیم', en: 'Retry Direct Connection' },
   proxySaved: { fa: 'آدرس پروکسی ذخیره شد. برای نصب‌های بعدی نیازی به تنظیم مجدد نیست.', en: 'Proxy URL saved. No need to set it up again for future installs.' },
+  generateNewName: { fa: 'تولید نام تصادفی جدید', en: 'Generate New Random Name' },
   errWorkerName: {
     fa: 'نام Worker نامعتبر. فقط حروف کوچک، اعداد و خط تیره مجاز است (حداقل ۳ کاراکتر)',
     en: 'Invalid Worker name. Only lowercase, numbers, and hyphens allowed (min 3 chars)'
@@ -525,8 +546,21 @@ const T = {
 };
 
 // ══════════════════════════════════════════════════════════
-//  STATE
+//  STATE & HELPERS
 // ══════════════════════════════════════════════════════════
+function generateRandomWorkerName() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let rand = '';
+  let rand2 = '';
+  let rand3 = '';
+  for (let i = 0; i < 6; i++) {
+    rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    rand2 += chars.charAt(Math.floor(Math.random() * chars.length));
+    rand3 += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return rand + '-' + rand2 + '-' + rand3;
+}
+
 let lang = 'fa';
 let currentStep = 0;
 const totalSteps = 6;
@@ -539,7 +573,7 @@ const state = {
   apiToken: '',
   accountId: '',
   accountName: '',
-  workerName: 'nahan-core',
+  workerName: generateRandomWorkerName(),
   dbName: 'iot_db',
   dbId: '',
   password: '',
@@ -722,61 +756,74 @@ async function validateCredentials() {
 
 async function fetchWorkerCode() {
   const proxy = state.proxyUrl;
-  const sources = proxy
-    ? [
-        { name: 'Proxy → GitHub', url: `${proxy}/github`, viaProxy: true, githubUrl: 'https://raw.githubusercontent.com/itsyebekhe/nahan/refs/heads/main/_worker.js' },
-      ]
-    : [
-        { name: 'jsDelivr CDN', url: 'https://cdn.jsdelivr.net/gh/itsyebekhe/nahan@main/_worker.js' },
-        { name: 'GitHub API',    url: 'https://api.github.com/repos/itsyebekhe/nahan/contents/_worker.js?ref=main' },
-        { name: 'GitHub Raw',    url: 'https://raw.githubusercontent.com/itsyebekhe/nahan/refs/heads/main/_worker.js' },
-      ];
+  const filesToTry = ['_worker.encode.js', '_worker.encoded.js', '_worker.js'];
 
   const errors = [];
 
-  for (const src of sources) {
-    try {
-      console.log(`[fetch] Trying ${src.name}: ${src.url}`);
-      const fetchOpts = src.viaProxy
-        ? { headers: { 'X-GitHub-Url': src.githubUrl } }
-        : {};
-      const res = await fetch(src.url, fetchOpts);
-      if (!res.ok) {
-        const err = `HTTP ${res.status} ${res.statusText}`;
-        console.warn(`[fetch] ${src.name} → ${err}`);
-        errors.push(`${src.name}: ${err}`);
-        continue;
+  for (const filename of filesToTry) {
+    const sources = proxy
+      ? [
+          { name: `Proxy → GitHub (${filename})`, url: `${proxy}/github`, viaProxy: true, githubUrl: `https://raw.githubusercontent.com/itsyebekhe/nahan/refs/heads/main/${filename}` },
+        ]
+      : [
+          { name: `jsDelivr CDN (${filename})`, url: `https://cdn.jsdelivr.net/gh/itsyebekhe/nahan@main/${filename}` },
+          { name: `GitHub API (${filename})`,    url: `https://api.github.com/repos/itsyebekhe/nahan/contents/${filename}?ref=main` },
+          { name: `GitHub Raw (${filename})`,    url: `https://raw.githubusercontent.com/itsyebekhe/nahan/refs/heads/main/${filename}` },
+        ];
+
+    for (const src of sources) {
+      try {
+        console.log(`[fetch] Trying ${src.name}: ${src.url}`);
+        const fetchOpts = src.viaProxy
+          ? { headers: { 'X-GitHub-Url': src.githubUrl } }
+          : {};
+        const res = await fetch(src.url, fetchOpts);
+        if (!res.ok) {
+          const err = `HTTP ${res.status} ${res.statusText}`;
+          console.warn(`[fetch] ${src.name} → ${err}`);
+          errors.push(`${src.name}: ${err}`);
+          continue;
+        }
+
+        let code;
+        if (src.name.includes('GitHub API')) {
+          const json = await res.json();
+          const bin = atob(json.content);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          code = new TextDecoder('utf-8').decode(bytes);
+        } else {
+          code = await res.text();
+        }
+
+        if (!code || code.length < 1000) {
+          console.warn(`[fetch] ${src.name} → response too small (${code.length} bytes)`);
+          errors.push(`${src.name}: invalid response (${code.length} bytes)`);
+          continue;
+        }
+
+        console.log(`[fetch] Downloaded ${filename} size: ${code.length} bytes (${(code.length / 1024).toFixed(1)} KB)`);
+        console.log(`[fetch] First 200 chars of ${filename}:\n${code.substring(0, 200)}`);
+        console.log(`[fetch] Last 200 chars of ${filename}:\n${code.substring(code.length - 200)}`);
+
+        const verMatch = code.match(/const\s+CURRENT_VERSION\s*=\s*["']([^"']+)["']/);
+        if (verMatch) {
+          state.workerVersion = verMatch[1];
+        } else {
+          try {
+            const vRes = await fetch('https://raw.githubusercontent.com/itsyebekhe/nahan/main/version');
+            if (vRes.ok) {
+              state.workerVersion = (await vRes.text()).trim();
+            }
+          } catch (ve) {}
+        }
+        state.workerCode = code;
+        console.log(`[fetch] ✓ ${src.name} succeeded (${(code.length / 1024).toFixed(0)} KB${state.workerVersion ? ', v' + state.workerVersion : ''})`);
+        return { ok: true, source: src.name };
+      } catch (e) {
+        console.error(`[fetch] ${src.name} → EXCEPTION`, e);
+        errors.push(`${src.name}: ${e.message}`);
       }
-
-      let code;
-      if (src.name === 'GitHub API') {
-        const json = await res.json();
-        const bin = atob(json.content);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        code = new TextDecoder('utf-8').decode(bytes);
-      } else {
-        code = await res.text();
-      }
-
-      if (!code || code.length < 1000) {
-        console.warn(`[fetch] ${src.name} → response too small (${code.length} bytes)`);
-        errors.push(`${src.name}: invalid response (${code.length} bytes)`);
-        continue;
-      }
-
-      console.log(`[fetch] Downloaded _worker.js size: ${code.length} bytes (${(code.length / 1024).toFixed(1)} KB)`);
-      console.log(`[fetch] First 200 chars of _worker.js:\n${code.substring(0, 200)}`);
-      console.log(`[fetch] Last 200 chars of _worker.js:\n${code.substring(code.length - 200)}`);
-
-      const verMatch = code.match(/const\s+CURRENT_VERSION\s*=\s*["']([^"']+)["']/);
-      state.workerVersion = verMatch ? verMatch[1] : '';
-      state.workerCode = code;
-      console.log(`[fetch] ✓ ${src.name} succeeded (${(code.length / 1024).toFixed(0)} KB${state.workerVersion ? ', v' + state.workerVersion : ''})`);
-      return { ok: true, source: src.name };
-    } catch (e) {
-      console.error(`[fetch] ${src.name} → EXCEPTION`, e);
-      errors.push(`${src.name}: ${e.message}`);
     }
   }
 
@@ -1241,50 +1288,131 @@ function startFlow(isUpdateMode) {
 }
 
 // ── Connectivity Test / Proxy Setup ──
-const PROXY_CODE = `// Nahan Installer Proxy Worker — Deploy on your Cloudflare account.
+const PROXY_CODE = `// Nahan Installer Proxy Worker
+// Relays Cloudflare API calls for the web installer.
+// Restricted to installer-required API paths only.
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Proxy-Target, X-GitHub-Url',
   'Access-Control-Max-Age': '86400',
 };
-const jsonResp = (d, s = 200) =>
-  new Response(JSON.stringify(d), { status: s, headers: { 'Content-Type': 'application/json', ...CORS } });
+
+const jsonResp = (data, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...CORS },
+  });
+
+// Only these Cloudflare API path patterns are allowed.
+// Prevents the proxy from being abused as a general-purpose CORS relay.
+function isAllowedPath(path) {
+  // Allow /accounts (list all accounts) and /accounts/{id}...
+  if (path === '/accounts' || path === '/accounts/') return true;
+  if (!path.startsWith('/accounts/')) return false;
+  const patterns = [
+    /^\\/accounts\\/[^/]+\\/d1\\/database/,                // D1 create, list, delete
+    /^\\/accounts\\/[^/]+\\/workers\\/scripts\\//,           // Worker upload (PUT), settings, delete
+    /^\\/accounts\\/[^/]+\\/workers\\/scripts\\/[^/]+\\/deployments$/, // Worker deployments
+    /^\\/accounts\\/[^/]+\\/workers\\/workers(\\/|$)/,       // Worker create, list, get, versions (Beta API)
+    /^\\/accounts\\/[^/]+\\/workers\\/services\\//,          // Worker services (subdomain enablement)
+    /^\\/accounts\\/[^/]+\\/workers\\/subdomain$/,          // Workers.dev subdomain
+    /^\\/accounts\\/[^/]+$/,                              // Account info
+  ];
+  return patterns.some(p => p.test(path));
+}
 
 export default {
   async fetch(request) {
-    if (request.method === 'OPTIONS')
+    if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
-    const url = new URL(request.url);
-    if (url.pathname === '/health') return jsonResp({ ok: true, ts: Date.now() });
-    if (url.pathname === '/github') {
-      const t = request.headers.get('X-GitHub-Url');
-      if (!t) return jsonResp({ error: 'Missing X-GitHub-Url' }, 400);
-      try {
-        const r = await fetch(t);
-        return new Response(await r.text(), { status: r.status, headers: { 'Content-Type': 'application/javascript', ...CORS } });
-      } catch (e) { return jsonResp({ error: e.message }, 502); }
     }
+
+    const url = new URL(request.url);
+
+    // Health check
+    if (url.pathname === '/health') {
+      return jsonResp({ ok: true, ts: Date.now() });
+    }
+
+    // Proxy GitHub raw content
+    if (url.pathname === '/github') {
+      const target = request.headers.get('X-GitHub-Url');
+      if (!target) return jsonResp({ error: 'Missing X-GitHub-Url header' }, 400);
+      if (!target.startsWith('https://raw.githubusercontent.com/') &&
+          !target.startsWith('https://cdn.jsdelivr.net/') &&
+          !target.startsWith('https://api.github.com/')) {
+        return jsonResp({ error: 'URL not allowed' }, 403);
+      }
+      try {
+        const resp = await fetch(target);
+        return new Response(await resp.text(), {
+          status: resp.status,
+          headers: { 'Content-Type': 'application/javascript', ...CORS },
+        });
+      } catch (e) {
+        return jsonResp({ error: e.message }, 502);
+      }
+    }
+
+    // Proxy Cloudflare API — restricted paths only
     const apiToken = request.headers.get('Authorization');
-    if (!apiToken) return jsonResp({ error: 'Missing Authorization' }, 401);
+    if (!apiToken) return jsonResp({ error: 'Missing Authorization header' }, 401);
+
     const target = request.headers.get('X-Proxy-Target');
-    if (!target) return jsonResp({ error: 'Missing X-Proxy-Target' }, 400);
+    if (!target) return jsonResp({ error: 'Missing X-Proxy-Target header' }, 400);
+
+    if (!isAllowedPath(target)) {
+      return jsonResp({ error: 'Path not allowed by proxy' }, 403);
+    }
+
     try {
       const cfUrl = 'https://api.cloudflare.com/client/v4' + target;
-      const opts = { method: request.method, headers: { Authorization: apiToken } };
+      const opts = {
+        method: request.method,
+        headers: { Authorization: apiToken }
+      };
+
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         const ct = request.headers.get('Content-Type') || '';
-        if (ct.includes('multipart/form-data')) { opts.body = await request.formData(); }
-        else { opts.body = await request.text(); opts.headers['Content-Type'] = 'application/json'; }
+        if (ct.includes('multipart/form-data')) {
+          const formData = await request.formData();
+          const fieldNames = [];
+          for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+              fieldNames.push(key + '(file: ' + value.name + ', ' + value.size + ' bytes, ' + value.type + ')');
+            } else {
+              fieldNames.push(key + '(string: ' + String(value).length + ' chars)');
+            }
+          }
+          console.log('[Proxy] ' + request.method + ' ' + target + ' multipart fields: [' + fieldNames.join(', ') + ']');
+          opts.body = formData;
+        } else {
+          opts.body = await request.text();
+          opts.headers['Content-Type'] = 'application/json';
+        }
       }
+
+      console.log('[Proxy] ' + request.method + ' ' + cfUrl);
       const resp = await fetch(cfUrl, opts);
-      return new Response(await resp.text(), { status: resp.status, headers: { 'Content-Type': 'application/json', ...CORS } });
-    } catch (e) { return jsonResp({ error: e.message }, 502); }
+      const respText = await resp.text();
+      console.log('[Proxy] Response: HTTP ' + resp.status + ', ' + respText.length + ' bytes');
+      if (resp.status >= 400) {
+        console.log('[Proxy] Error response: ' + respText.substring(0, 500));
+      }
+      return new Response(respText, {
+        status: resp.status,
+        headers: { 'Content-Type': 'application/json', ...CORS },
+      });
+    } catch (e) {
+      console.error('[Proxy] Error:', e.message);
+      return jsonResp({ error: e.message }, 502);
+    }
   },
 };`;
 
 function renderConnTest() {
-  const hasSavedProxy = !!state.proxyUrl;
   return `
 <div class="card step-panel">
   <div class="card-title" data-t="connTitle"></div>
@@ -1295,82 +1423,111 @@ function renderConnTest() {
     <span data-t="connTesting"></span>
   </div>
 
-  <!-- Proxy selection buttons (shown when direct access fails) -->
-  <div id="proxyButtons" style="display:none;margin:20px 0">
-    <div style="text-align:center;margin-bottom:16px">
-      <div style="font-size:.9rem;color:var(--text2);margin-bottom:12px">
-        ${lang === 'fa' ? 'اتصال مستقیم ممکن نیست. یکی از روش‌های زیر را انتخاب کنید:' : 'Direct connection not possible. Choose one of the following:'}
-      </div>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="connectDefaultProxy()" style="min-width:180px">
-          ⚡ <span>${lang === 'fa' ? 'پروکسی پیش‌فرض' : 'Default Proxy'}</span>
-        </button>
-        <button class="btn btn-secondary" onclick="showCustomProxyForm()" style="min-width:180px">
-          🔧 <span>${lang === 'fa' ? 'پروکسی شخصی' : 'Custom Proxy'}</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Custom proxy form (hidden by default) -->
-  <div id="customProxyForm" style="display:none;margin-top:16px">
-    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
-      <div style="font-weight:600;margin-bottom:8px;color:var(--cyan)" data-t="customProxyTitle"></div>
-      <div style="font-size:.85rem;color:var(--text2);margin-bottom:12px" data-t="customProxyDesc"></div>
-      <input type="text" class="form-input" id="inpCustomProxy"
-             placeholder="https://my-proxy.workers.dev" spellcheck="false"
-             style="direction:ltr;text-align:left;margin-bottom:10px">
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-primary btn-sm" onclick="connectCustomProxy()" id="btnCustomConnect">
-          <span data-t="customProxyBtn"></span>
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="cancelCustomProxy()">
-          <span data-t="back"></span>
-        </button>
-      </div>
-      <div id="customProxyResult" style="margin-top:10px"></div>
-    </div>
-  </div>
-
   <div id="connResult"></div>
 
-  <div class="btn-group">
+  <div class="btn-group" style="margin-top:20px">
     <button class="btn btn-secondary" onclick="goStep(0)" data-t="back"></button>
   </div>
 </div>`;
 }
 
-// ══════════════════════════════════════════════════════════
-//  CUSTOM PROXY
-// ══════════════════════════════════════════════════════════
+function renderProxySetup() {
+  return `
+  <div style="margin-top:16px">
+    <!-- Error 1101 Warning Banner -->
+    <div class="alert alert-warn" style="margin-bottom:18px;border-width:2px;background:rgba(255,170,0,.1);border-color:var(--yellow)">
+      <span class="alert-icon" style="font-size:1.3rem">⚠️</span>
+      <div>
+        <div style="font-weight:700;font-size:.95rem;margin-bottom:6px;color:var(--yellow)" data-t="proxyWarn1101Title"></div>
+        <div style="font-size:.85rem;color:var(--text);line-height:1.7" data-t-html="proxyWarn1101Desc"></div>
+      </div>
+    </div>
 
-function showCustomProxyForm() {
-  const btns = document.getElementById('proxyButtons');
-  const form = document.getElementById('customProxyForm');
-  if (btns) btns.style.display = 'none';
-  if (form) form.style.display = 'block';
+    <!-- Personal Proxy Guide (Primary & Recommended) -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:20px">
+      <div style="font-weight:700;color:var(--cyan);font-size:1rem;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        <span data-t="proxySetupTitle"></span>
+      </div>
+
+      <ol class="steps-list">
+        <li>
+          <span data-t="proxyStep1"></span><br>
+          <a href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/create" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px">
+            <span data-t="openCfDashboard"></span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 7v3a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1h3M7 1h4v4M5 7L10.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </li>
+        <li><span data-t-html="proxyStep2"></span></li>
+        <li>
+          <span data-t="proxyStep3"></span>
+          <div class="code-block" id="proxyCodeBlock" style="max-height:220px;overflow:auto;white-space:pre;font-size:.78rem">${esc(PROXY_CODE)}</div>
+          <button class="btn btn-sm btn-secondary" onclick="copyProxyCode()" style="margin-top:4px" id="btnCopyProxy">
+            <span data-t="copyProxyCode"></span>
+          </button>
+        </li>
+        <li><span data-t="proxyStep4"></span></li>
+        <li>
+          <span data-t="proxyStep5"></span>
+          <div style="display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap">
+            <input type="text" class="form-input" id="inpProxyUrl" value="${esc(state.proxyUrl)}"
+                   placeholder="https://nahan-proxy.yourname.workers.dev" spellcheck="false"
+                   style="direction:ltr;text-align:left;flex:1;min-width:240px">
+            <button class="btn btn-primary btn-sm" onclick="testProxyConnection()" id="btnTestProxy" style="min-height:42px;padding:0 18px">
+              <span data-t="connectProxy"></span>
+            </button>
+          </div>
+          <div id="proxyTestResult" style="margin-top:10px"></div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Optional / Fallback Default Proxy Section -->
+    <details style="background:var(--bg2);border:1px dashed var(--border);border-radius:var(--radius);padding:12px 16px">
+      <summary style="cursor:pointer;font-size:.85rem;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px">
+        <span data-t="useDefaultProxyOption"></span>
+      </summary>
+      <div style="margin-top:10px;font-size:.82rem;color:var(--text2);line-height:1.6">
+        <div style="margin-bottom:10px" data-t="defaultProxyWarningDetail"></div>
+        <button class="btn btn-secondary btn-sm" onclick="connectDefaultProxy()" id="btnDefaultConnect">
+          ⚡ <span data-t="connectDefaultBtn"></span>
+        </button>
+        <div id="defaultProxyResult" style="margin-top:8px"></div>
+      </div>
+    </details>
+  </div>`;
 }
 
-function cancelCustomProxy() {
-  const form = document.getElementById('customProxyForm');
-  const btns = document.getElementById('proxyButtons');
-  if (form) form.style.display = 'none';
-  if (btns) btns.style.display = 'block';
+function copyProxyCode() {
+  navigator.clipboard.writeText(PROXY_CODE).then(() => {
+    const btn = document.getElementById('btnCopyProxy');
+    if (btn) {
+      btn.textContent = t('proxyCopied');
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = t('copyProxyCode');
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+  });
 }
 
-async function connectCustomProxy() {
-  const inp = document.getElementById('inpCustomProxy');
-  const resultEl = document.getElementById('customProxyResult');
-  const btnEl = document.getElementById('btnCustomConnect');
+async function testProxyConnection() {
+  const inp = document.getElementById('inpProxyUrl');
+  if (!inp) return;
   const url = inp.value.trim().replace(/\/+$/, '');
+  const btn = document.getElementById('btnTestProxy');
+  const resultEl = document.getElementById('proxyTestResult');
 
   if (!url) {
-    resultEl.innerHTML = alert('error', lang === 'fa' ? 'آدرس پروکسی را وارد کنید' : 'Enter proxy URL');
+    if (resultEl) resultEl.innerHTML = alert('error', lang === 'fa' ? 'لطفاً آدرس پروکسی را وارد کنید' : 'Please enter proxy URL');
     return;
   }
 
-  btnEl.disabled = true;
-  btnEl.innerHTML = `<div class="spinner"></div>`;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner"></div>`;
+  }
+  if (resultEl) resultEl.innerHTML = '';
 
   try {
     const res = await fetch(`${url}/health`);
@@ -1379,45 +1536,56 @@ async function connectCustomProxy() {
       state.proxyUrl = url;
       localStorage.setItem('nahan_proxy_url', url);
       const statusEl = document.getElementById('connStatus');
-      statusEl.className = 'conn-status conn-ok';
-      statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+      if (statusEl) {
+        statusEl.className = 'conn-status conn-ok';
+        statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+      }
+      if (resultEl) resultEl.innerHTML = alert('success', t('proxyConnected'));
       setTimeout(() => goStep(2), 1000);
+      return;
     } else {
-      resultEl.innerHTML = alert('error', t('proxyFailed'));
+      if (resultEl) resultEl.innerHTML = alert('error', t('proxyFailed'));
     }
   } catch (e) {
-    resultEl.innerHTML = alert('error', `${t('proxyFailed')}: ${e.message}`);
+    if (resultEl) resultEl.innerHTML = alert('error', `${t('proxyFailed')}: ${e.message}`);
   }
 
-  btnEl.disabled = false;
-  btnEl.textContent = t('customProxyBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<span data-t="connectProxy"></span>`;
+    applyTranslations();
+  }
 }
 
 async function connectDefaultProxy() {
-  const statusEl = document.getElementById('connStatus');
-  const resultEl = document.getElementById('connResult');
-  const proxyBtns = document.getElementById('proxyButtons');
-
-  statusEl.className = 'conn-status conn-testing';
-  statusEl.innerHTML = `<div class="spinner"></div><span>${t('connTesting')}</span>`;
-  if (proxyBtns) proxyBtns.style.display = 'none';
+  const resultEl = document.getElementById('defaultProxyResult') || document.getElementById('proxyTestResult');
+  const btn = document.getElementById('btnDefaultConnect');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner"></div>`;
+  }
 
   try {
     const r = await fetch(`${DEFAULT_PROXY_URL}/health`);
     const j = await r.json();
     if (j.ok) {
       state.proxyUrl = DEFAULT_PROXY_URL;
-      statusEl.className = 'conn-status conn-ok';
-      statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+      const statusEl = document.getElementById('connStatus');
+      if (statusEl) {
+        statusEl.className = 'conn-status conn-ok';
+        statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+      }
+      if (resultEl) resultEl.innerHTML = alert('success', t('proxyConnected'));
       setTimeout(() => goStep(2), 1000);
       return;
     }
   } catch (e) { /* failed */ }
 
-  // Default proxy also failed — show manual setup
-  statusEl.className = 'conn-status conn-fail';
-  statusEl.innerHTML = `<span>✗</span><span>${t('connFail')}</span>`;
-  resultEl.innerHTML = renderProxySetup();
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `⚡ <span>${t('connectDefaultBtn')}</span>`;
+  }
+  if (resultEl) resultEl.innerHTML = alert('error', t('proxyFailed'));
 }
 
 async function runConnectivityTest() {
@@ -1453,91 +1621,11 @@ async function runConnectivityTest() {
     return;
   }
 
-  // Direct failed — show proxy selection buttons
+  // Direct failed (normal in browsers due to CORS) — show proxy setup immediately
   statusEl.className = 'conn-status conn-fail';
-  statusEl.innerHTML = `<span>✗</span><span>${lang === 'fa' ? 'اتصال مستقیم ممکن نیست' : 'Direct access not possible'}</span>`;
-  resultEl.innerHTML = '';
-
-  // Show proxy selection buttons
-  const proxyBtns = document.getElementById('proxyButtons');
-  if (proxyBtns) proxyBtns.style.display = 'block';
-}
-
-function renderProxySetup() {
-  return `
-  <div style="margin-top:16px">
-    <div class="alert alert-warn" style="margin-bottom:16px">
-      <span class="alert-icon">💡</span>
-      <span>${t('connFailReason')}</span>
-    </div>
-
-    <p style="font-size:.9rem;color:var(--text2);margin-bottom:16px">${t('connProxyNeeded')}</p>
-
-    <ol class="steps-list">
-      <li>${t('proxyStep1')}<br>
-        <a href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/create" target="_blank" rel="noopener">${t('openCfDashboard')}</a>
-      </li>
-      <li>${t('proxyStep2')}</li>
-      <li>
-        ${t('proxyStep3')}
-        <div class="code-block" id="proxyCodeBlock" style="max-height:260px;overflow:auto;white-space:pre;font-size:.78rem">${esc(PROXY_CODE)}</div>
-        <button class="btn btn-sm btn-secondary" onclick="copyProxyCode()" style="margin-top:6px" id="btnCopyProxy">${t('copyProxyCode')}</button>
-      </li>
-      <li>${t('proxyStep4')}</li>
-      <li>
-        ${t('proxyStep5')}
-        <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
-          <input type="text" class="form-input" id="inpProxyUrl" value="${esc(state.proxyUrl)}"
-                 placeholder="${t('proxyUrlPlaceholder')}" spellcheck="false"
-                 style="direction:ltr;text-align:left;flex:1">
-          <button class="btn btn-primary btn-sm" onclick="testProxyConnection()" id="btnTestProxy">${t('connectProxy')}</button>
-        </div>
-        <div id="proxyTestResult" style="margin-top:8px"></div>
-      </li>
-    </ol>
-  </div>`;
-}
-
-function copyProxyCode() {
-  navigator.clipboard.writeText(PROXY_CODE).then(() => {
-    const btn = document.getElementById('btnCopyProxy');
-    btn.textContent = t('proxyCopied');
-    btn.classList.add('copied');
-    setTimeout(() => {
-      btn.textContent = t('copyProxyCode');
-      btn.classList.remove('copied');
-    }, 2000);
-  });
-}
-
-async function testProxyConnection() {
-  const url = document.getElementById('inpProxyUrl').value.trim().replace(/\/+$/, '');
-  const btn = document.getElementById('btnTestProxy');
-  const resultEl = document.getElementById('proxyTestResult');
-
-  if (!url) return;
-
-  btn.disabled = true;
-  btn.innerHTML = `<div class="spinner"></div>`;
-  resultEl.innerHTML = '';
-
-  try {
-    const res = await fetch(`${url}/health`);
-    const json = await res.json();
-    if (json.ok) {
-      state.proxyUrl = url;
-      localStorage.setItem('nahan_proxy_url', url);
-      resultEl.innerHTML = alert('success', t('proxyConnected'));
-      setTimeout(() => goStep(2), 1000);
-    } else {
-      resultEl.innerHTML = alert('error', t('proxyFailed'));
-    }
-  } catch (e) {
-    resultEl.innerHTML = alert('error', `${t('proxyFailed')}: ${e.message}`);
-  }
-
-  btn.disabled = false;
-  btn.textContent = t('connectProxy');
+  statusEl.innerHTML = `<span>✗</span><span>${t('connFail')}</span>`;
+  resultEl.innerHTML = renderProxySetup();
+  applyTranslations();
 }
 
 // ── Credentials ──
@@ -1708,6 +1796,15 @@ function onAccountSelect() {
   }
 }
 
+function rerollWorkerName() {
+  state.workerName = generateRandomWorkerName();
+  const inp = document.getElementById('inpWorker');
+  if (inp) {
+    inp.value = state.workerName;
+    inp.placeholder = state.workerName;
+  }
+}
+
 // ── Configuration ──
 function renderConfig() {
   const isUpdate = state.isUpdate;
@@ -1720,8 +1817,11 @@ function renderConfig() {
   <div class="config-grid">
     <div class="form-group">
       <label class="form-label" data-t="labelWorker"></label>
-      <input type="text" class="form-input" id="inpWorker" value="${esc(state.workerName)}"
-             placeholder="nahan-core" spellcheck="false" style="direction:ltr;text-align:left">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="form-input" id="inpWorker" value="${esc(state.workerName)}"
+               placeholder="${esc(state.workerName)}" spellcheck="false" style="direction:ltr;text-align:left;flex:1">
+        <button type="button" class="btn btn-secondary" onclick="rerollWorkerName()" title="${t('generateNewName')}" style="padding:0 14px;font-size:1.1rem;min-height:42px;flex-shrink:0">🎲</button>
+      </div>
       <div class="form-hint" data-t="hintWorker"></div>
     </div>
     
@@ -2066,7 +2166,7 @@ function resetAll() {
   state.apiToken = '';
   state.accountId = '';
   state.accountName = '';
-  state.workerName = 'nahan-core';
+  state.workerName = generateRandomWorkerName();
   state.dbName = 'iot_db';
   state.dbId = '';
   state.password = '';
