@@ -1,4 +1,1294 @@
-// Nahan Installer Proxy Worker
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<title>Nahan Installer | نصب‌کننده نهان</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a26;--bg4:#22223a;
+  --text:#e0e0ec;--text2:#8888a0;--text3:#55556a;
+  --cyan:#e53935;--cyan2:#c62828;--cyan-bg:rgba(229,57,53,.12);
+  --green:#00e676;--green-bg:rgba(0,230,118,.08);
+  --red:#ff4466;--red-bg:rgba(255,68,102,.08);
+  --yellow:#ffaa00;--yellow-bg:rgba(255,170,0,.08);
+  --purple:#b388ff;
+  --border:#2a2a40;--border2:#3a3a55;
+  --radius:12px;--radius2:16px;
+  --shadow:0 8px 32px rgba(0,0,0,.45);
+  --font:'Vazirmatn',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:'SF Mono','Cascadia Code','Fira Code','Consolas',monospace;
+  --transition:all .25s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── Cross-Platform & Windows Scrollbar Fixes ── */
+html, body {
+  width: 100%;
+  overflow-x: hidden; /* Prevents Windows horizontal scrollbar bugs */
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) var(--bg);
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+html { font-size: 15px; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: var(--font); background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  line-height: 1.6; -webkit-font-smoothing: antialiased;
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+body.ltr { direction: ltr; }
+body.rtl { direction: rtl; }
+
+/* ── Windows Grid Bug Fix: Enforce min-width: 0 on containers ── */
+.container, .card, .config-grid > *, .feature-grid > *, .result-box, .result-value {
+  min-width: 0;
+}
+
+.container {
+  width: 100%; max-width: 720px;
+  padding: 20px 16px 40px;
+  margin: 0 auto;
+}
+
+/* ── Top Nav ── */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 24px;
+  gap: 12px;
+}
+.nav-btn {
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: .82rem;
+  font-weight: 600; transition: var(--transition); display: inline-flex;
+  align-items: center; gap: 6px; text-decoration: none; min-height: 38px;
+  white-space: nowrap;
+}
+.nav-btn:hover, .nav-btn:active { background: var(--cyan-bg); border-color: var(--cyan); color: var(--cyan); }
+
+/* ── Header ── */
+.header { text-align: center; margin-bottom: 24px; }
+.logo { font-size: 2.2rem; font-weight: 900; letter-spacing: 4px; color: var(--cyan); margin-bottom: 4px; }
+.logo-sub { color: var(--text2); font-size: .85rem; font-weight: 400; }
+
+/* ── Steps Indicator ── */
+.steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+.step-dot {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--bg4);
+  border: 2px solid var(--border2); transition: var(--transition);
+}
+.step-dot.active { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 12px rgba(229,57,53,.5); }
+.step-dot.done { background: var(--green); border-color: var(--green); }
+
+/* ── Card ── */
+.card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius2);
+  padding: 28px; box-shadow: var(--shadow); transition: var(--transition);
+  width: 100%; overflow: hidden;
+}
+.card-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; color: var(--cyan); }
+.card-subtitle { color: var(--text2); font-size: .88rem; margin-bottom: 20px; }
+
+/* ── Form Controls ── */
+.form-group { margin-bottom: 18px; }
+.form-label { display: block; font-size: .85rem; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.form-input {
+  width: 100%; padding: 12px 14px; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text); font-size: .95rem;
+  font-family: var(--font-mono); transition: var(--transition); outline: none;
+  min-height: 46px; line-height: 1.5;
+}
+.form-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(229,57,53,.15); }
+.form-input::placeholder { color: var(--text3); font-family: var(--font); }
+textarea.form-input { min-height: 100px; resize: vertical; }
+.form-hint { font-size: .78rem; color: var(--text3); margin-top: 5px; line-height: 1.4; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 24px; border-radius: var(--radius); font-size: .92rem;
+  font-weight: 600; cursor: pointer; border: none; transition: var(--transition);
+  font-family: var(--font); min-height: 46px; text-decoration: none;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--cyan); color: #fff; box-shadow: 0 4px 16px rgba(229,57,53,.3); }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(229,57,53,.4); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn-group { display: flex; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+.btn-sm { padding: 8px 16px; font-size: .82rem; min-height: 36px; }
+
+/* ── Alerts ── */
+.alert {
+  padding: 12px 16px; border-radius: var(--radius); font-size: .85rem;
+  margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; line-height: 1.5;
+  word-break: break-word; overflow-wrap: anywhere;
+}
+.alert-info { background: var(--cyan-bg); border: 1px solid rgba(229,57,53,.2); color: var(--cyan); }
+.alert-success { background: var(--green-bg); border: 1px solid rgba(0,230,118,.2); color: var(--green); }
+.alert-error { background: var(--red-bg); border: 1px solid rgba(255,68,102,.2); color: var(--red); }
+.alert-warn { background: var(--yellow-bg); border: 1px solid rgba(255,170,0,.2); color: var(--yellow); }
+.alert-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+/* ── Progress & Status ── */
+.progress-list { list-style: none; margin: 8px 0; }
+.progress-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border-radius: var(--radius); margin-bottom: 8px; background: var(--bg3);
+  border: 1px solid var(--border); transition: var(--transition);
+}
+.progress-item.active { border-color: var(--cyan); background: var(--cyan-bg); }
+.progress-item.done { border-color: var(--green); background: var(--green-bg); }
+.progress-item.error { border-color: var(--red); background: var(--red-bg); }
+.progress-item.waiting { opacity: .5; }
+.progress-icon { font-size: 1rem; flex-shrink: 0; width: 20px; text-align: center; }
+.progress-text { font-size: .88rem; font-weight: 600; }
+.progress-detail { font-size: .78rem; color: var(--text2); margin-top: 2px; overflow-wrap: anywhere; word-break: break-all; }
+
+.spinner {
+  width: 18px; height: 18px; border: 2px solid var(--border2);
+  border-top-color: var(--cyan); border-radius: 50%;
+  animation: spin .8s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Result Cards ── */
+.result-box {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 12px;
+}
+.result-label { font-size: .78rem; color: var(--text2); margin-bottom: 4px; }
+.result-value {
+  font-family: var(--font-mono); font-size: .9rem; color: var(--cyan);
+  overflow-wrap: anywhere; word-break: break-all; display: flex;
+  justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.copy-btn {
+  background: var(--bg4); border: 1px solid var(--border); color: var(--text2);
+  padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: .78rem;
+  transition: var(--transition); flex-shrink: 0; min-height: 32px;
+}
+.copy-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+.copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+/* ── Feature Grids & Lists ── */
+.feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.feature-item {
+  display: flex; align-items: center; gap: 10px; padding: 12px;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: .85rem;
+}
+.feature-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+.perm-list { list-style: none; margin: 12px 0; }
+.perm-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--bg3); border-radius: 8px; margin-bottom: 6px; font-size: .85rem;
+}
+.perm-icon { color: var(--cyan); font-size: 1rem; flex-shrink: 0; }
+
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+.config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.code-block {
+  background: #0d0d14; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; font-family: var(--font-mono); font-size: .78rem; color: var(--purple);
+  overflow-x: auto; margin: 10px 0; line-height: 1.5; direction: ltr; text-align: left;
+}
+
+.steps-list {
+  padding-inline-start: 22px;
+  margin: 14px 0;
+  color: var(--text);
+  font-size: .88rem;
+  line-height: 1.8;
+}
+.steps-list > li {
+  margin-bottom: 14px;
+}
+
+.conn-status {
+  display: flex; align-items: center; gap: 10px; padding: 14px;
+  border-radius: var(--radius); margin: 16px 0; font-size: .9rem;
+}
+.conn-testing { background: var(--cyan-bg); border: 1px solid rgba(229,57,53,.2); }
+.conn-ok { background: var(--green-bg); border: 1px solid rgba(0,230,118,.2); }
+.conn-fail { background: var(--red-bg); border: 1px solid rgba(255,68,102,.2); }
+
+.step-panel { animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+footer {
+  text-align: center;
+  padding: 20px;
+  margin-top: 32px;
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  box-shadow: var(--shadow);
+}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE & TABLET BREAKPOINTS
+   ══════════════════════════════════════════════════════════ */
+@media(max-width: 640px) {
+  .container { padding: 12px 12px 36px; }
+  .card { padding: 20px 16px; border-radius: 14px; }
+  .card-title { font-size: 1.15rem; }
+  .card-subtitle { font-size: .82rem; margin-bottom: 16px; }
+  
+  .logo { font-size: 1.8rem; letter-spacing: 3px; }
+  .logo-sub { font-size: .78rem; }
+  
+  .btn-group { flex-direction: column; gap: 10px; }
+  .btn-group .btn { width: 100%; justify-content: center; }
+  
+  .config-grid, .feature-grid { grid-template-columns: 1fr; gap: 10px; }
+  
+  .result-value { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .result-value .copy-btn { align-self: flex-end; }
+  
+  .top-nav { margin-bottom: 16px; }
+  .nav-btn { font-size: .78rem; padding: 6px 12px; }
+  
+  .saved-panel-card { flex-direction: column!important; align-items: stretch!important; gap: 12px!important; }
+  .saved-panel-actions { display: flex!important; width: 100%!important; gap: 8px!important; }
+  .saved-panel-actions .btn { flex: 1!important; justify-content: center!important; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ── Top Navigation Bar (Constrained to 720px Container) ── -->
+  <div class="top-nav">
+    <button class="nav-btn" onclick="toggleLang()">🌐 EN / فا</button>
+
+    <a href="https://github.com/erpycode/nahan-installer" target="_blank" rel="noopener" class="nav-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+      <span data-t="githubRepo"></span>
+    </a>
+  </div>
+
+  <!-- ── Header Logo ── -->
+  <div class="header">
+    <div class="logo">NAHAN</div>
+    <div class="logo-sub" data-t="logoSub"></div>
+  </div>
+
+  <!-- ── Step Dots Indicator ── -->
+  <div class="steps" id="stepsIndicator"></div>
+
+  <!-- ── Dynamic Step Content ── -->
+  <div id="stepContent"></div>
+
+  <!-- ── Footer Card (Aligned with Main UI Card) ── -->
+  <footer>
+    <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+      <a href="https://github.com/itsyebekhe/nahan" target="_blank" rel="noopener" class="nav-btn" style="padding:4px 12px;font-size:.8rem">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        <span data-t="githubRepo"></span>
+      </a>
+    </div>
+    <p style="color:var(--text3);font-size:.85rem">
+      <span data-t="madeWith"></span> <span style="color:var(--red)">❤️</span> <span data-t="by"></span>
+      <a href="https://github.com/erpycode" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:none;font-weight:600">ErPyCode</a>
+      <span style="color:var(--text2)">&amp;</span>
+      <a href="https://github.com/itsyebekhe" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:none;font-weight:600">Yebekhe</a>
+    </p>
+  </footer>
+
+</div> <!-- /.container -->
+
+</body>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  TRANSLATIONS
+// ══════════════════════════════════════════════════════════
+const T = {
+  logoSub: {
+    fa: 'نصب‌کننده خودکار — نسخه ۲.۰',
+    en: 'Automated Installer — v2.0'
+  },
+
+  githubRepo: { fa: 'مخزن گیت‌هاب', en: 'GitHub Repo' },
+  madeWith: { fa: 'ساخته شده با', en: 'Made with' },
+  by: { fa: 'توسط', en: 'by' },
+
+  // Mode Selection
+  updateWorkerBtn: { fa: 'به‌روزرسانی کد ورکر', en: 'Update Worker Code' },
+  updateTitle: { fa: 'به‌روزرسانی نسخه نهان', en: 'Update Nahan Version' },
+  updateSub: { fa: 'جایگزینی کد ورکر فعلی با آخرین نسخه', en: 'Replace current Worker code with the latest version' },
+
+  savedPanelsTitle: { fa: 'پنل‌های ثبت‌شده شما', en: 'Your Saved Panels' },
+  quickUpdateBtn: { fa: '⚡ به‌روزرسانی سریع', en: '⚡ Quick Update' },
+  deletePanelBtn: { fa: 'حذف', en: 'Delete' },
+  lastUpdatedLabel: { fa: 'آخرین به‌روزرسانی:', en: 'Last updated:' },
+  noSavedPanels: { fa: 'هیچ پنل ذخیره‌شده‌ای یافت نشد', en: 'No saved panels found' },
+  
+  // Progress Steps for Update Mode
+  stepFetchD1Binding: { fa: 'دریافت تنظیمات و دیتابیس ورکر فعلی', en: 'Fetching existing Worker & DB configuration' },
+  updateSuccessTitle: { fa: 'به‌روزرسانی با موفقیت انجام شد!', en: 'Update Successful!' },
+  updateSuccessSub: { fa: 'کد ورکر شما به آخرین نسخه به‌روزرسانی شد.', en: 'Your Worker code has been updated to the latest version.' },
+
+  // ── Step 1: Welcome ──
+  welcomeTitle: { fa: 'به نصب‌کننده نهان خوش آمدید', en: 'Welcome to Nahan Installer' },
+  welcomeSub: {
+    fa: 'این ابزار به‌صورت خودکار گیت‌وی نهان را روی Cloudflare Workers مستقر می‌کند',
+    en: 'This tool automatically deploys the Nahan gateway on Cloudflare Workers'
+  },
+  welcomeDesc: {
+    fa: 'نهان یک گیت‌وی پروکسی بدون سرور است که روی Cloudflare Workers اجرا می‌شود و از پروتکل‌های VLESS و Trojan پشتیبانی می‌کند. تمام تنظیمات در پایگاه داده D1 ذخیره می‌شود.',
+    en: 'Nahan is a serverless proxy gateway running on Cloudflare Workers with VLESS and Trojan protocol support. All configuration is stored in a D1 database.'
+  },
+  whatCreated: { fa: 'چه چیزی ساخته می‌شود؟', en: 'What will be created?' },
+  createD1: { fa: 'پایگاه داده D1 (ذخیره تنظیمات)', en: 'D1 database (stores configuration)' },
+  createWorker: { fa: 'Cloudflare Worker (گیت‌وی اصلی)', en: 'Cloudflare Worker (main gateway)' },
+  createBinding: { fa: 'اتصال D1 به Worker', en: 'D1 binding to Worker' },
+  whatNeeded: { fa: 'چه چیزی نیاز است؟', en: 'What do you need?' },
+  needToken: { fa: 'API Token با دسترسی‌های لازم', en: 'API Token with required permissions' },
+  needAccount: { fa: 'شناسه حساب Cloudflare (Account ID)', en: 'Cloudflare Account ID' },
+  permissionsTitle: { fa: 'دسترسی‌های لازم برای API Token:', en: 'Required API Token Permissions:' },
+  permD1: { fa: 'D1 — ویرایش (ایجاد و مدیریت پایگاه داده)', en: 'D1 — Edit (create & manage database)' },
+  permWorkers: { fa: 'Workers Scripts — ویرایش (استقرار Worker)', en: 'Workers Scripts — Edit (deploy Worker)' },
+  permAccount: { fa: 'Account Settings — خواندن (شناسه حساب)', en: 'Account Settings — Read (account ID)' },
+  permDNS: { fa: 'Workers Routes — ویرایش (اختیاری، برای دامنه سفارشی)', en: 'Workers Routes — Edit (optional, for custom domain)' },
+  createTokenLink: { fa: 'ساخت API Token در Cloudflare', en: 'Create API Token at Cloudflare' },
+  letsStart: { fa: 'شروع کنیم', en: "Let's Start" },
+
+
+
+  // ── Step 2: Credentials ──
+  credTitle: { fa: 'اعتبارنامه Cloudflare', en: 'Cloudflare Credentials' },
+  credSub: {
+    fa: 'API Token و شناسه حساب خود را وارد کنید',
+    en: 'Enter your API Token and Account ID'
+  },
+  labelToken: { fa: 'API Token', en: 'API Token' },
+  createTokenBtn: { fa: 'ساخت API Token در Cloudflare', en: 'Create API Token on Cloudflare' },
+  createTokenHint: {
+    fa: 'روی دکمه بالا کلیک کنید تا صفحه ساخت توکن با دسترسی‌های لازم باز شود. پس از ساخت، توکن را کپی و در زیر وارد کنید.',
+    en: 'Click the button above to open the token creation page with required permissions pre-filled. After creating, copy and paste the token below.'
+  },
+  hintToken: {
+    fa: 'توکن با دسترسی D1 Edit، Workers Scripts Edit، Account Read، Account Analytics',
+    en: 'Token with D1 Edit, Workers Scripts Edit, Account Read, Account Analytics permissions'
+  },
+  labelAccount: { fa: 'شناسه حساب (Account ID)', en: 'Account ID' },
+  hintAccount: {
+    fa: 'در صفحه Overview داشبورد Cloudflare پیدا می‌شود',
+    en: 'Found on the Overview page of your Cloudflare dashboard'
+  },
+  validating: { fa: 'در حال اعتبارسنجی...', en: 'Validating...' },
+  validSuccess: { fa: 'اعتبارسنجی موفق! حساب شناسایی شد', en: 'Validation successful! Account identified' },
+  validFail: { fa: 'اعتبارسنجی ناموفق', en: 'Validation failed' },
+  tokenInvalid: { fa: 'توکن نامعتبر یا دسترسی ناکافی', en: 'Invalid token or insufficient permissions' },
+  accountInvalid: { fa: 'شناسه حساب نامعتبر', en: 'Invalid account ID' },
+  next: { fa: 'مرحله بعد', en: 'Next' },
+  back: { fa: 'بازگشت', en: 'Back' },
+  validate: { fa: 'اعتبارسنجی', en: 'Validate' },
+
+  // ── Step 3: Configuration ──
+  configTitle: { fa: 'پیکربندی استقرار', en: 'Deployment Configuration' },
+  configSub: { fa: 'تنظیمات Worker و پایگاه داده را مشخص کنید', en: 'Specify Worker and database settings' },
+  labelWorker: { fa: 'نام Worker', en: 'Worker Name' },
+  hintWorker: {
+    fa: 'فقط حروف کوچک، اعداد و خط تیره. حداقل ۳ کاراکتر',
+    en: 'Lowercase letters, numbers, and hyphens only. Min 3 characters'
+  },
+  labelDB: { fa: 'نام پایگاه داده D1', en: 'D1 Database Name' },
+  hintDB: {
+    fa: 'نام اختیاری برای پایگاه داده D1',
+    en: 'Optional name for the D1 database'
+  },
+  labelPassword: { fa: 'رمز عبور پنل (Master Key)', en: 'Panel Password (Master Key)' },
+  hintPassword: {
+    fa: 'خالی بگذارید تا از پیش‌فرض (admin) استفاده شود. بعداً قابل تغییر است',
+    en: 'Leave empty to use default (admin). Can be changed later'
+  },
+  labelTgToken: { fa: 'توکن ربات تلگرام (اختیاری)', en: 'Telegram Bot Token (optional)' },
+  hintTgToken: { fa: 'برای اعلان‌ها و مدیریت از طریق تلگرام', en: 'For notifications and Telegram management' },
+  labelTgAdmin: { fa: 'شناسه ادمین تلگرام (اختیاری)', en: 'Telegram Admin ID (optional)' },
+  hintTgAdmin: { fa: 'شناسه عددی کاربر ادمین در تلگرام', en: 'Numeric user ID of the Telegram admin' },
+  advSettings: { fa: 'تنظیمات پیشرفته', en: 'Advanced Settings' },
+  labelApiRoute: { fa: 'مسیر پنل (API Route)', en: 'Panel Path (API Route)' },
+  hintApiRoute: { fa: 'مسیر URL پنل مدیریت (پیش‌فرض: sync)', en: 'Dashboard URL path (default: sync)' },
+  deploy: { fa: 'استقرار', en: 'Deploy' },
+
+  // ── Step 4: Deployment ──
+  deployTitle: { fa: 'در حال استقرار...', en: 'Deploying...' },
+  deploySub: { fa: 'لطفاً صبر کنید تا فرآیند تکمیل شود', en: 'Please wait while the process completes' },
+  stepFetch: { fa: 'دریافت آخرین نسخه کد Worker', en: 'Fetching latest Worker code' },
+  stepD1: { fa: 'ایجاد پایگاه داده D1', en: 'Creating D1 database' },
+  stepD1Exists: { fa: 'پایگاه داده D1 از قبل وجود دارد — دریافت شناسه', en: 'D1 database already exists — fetching ID' },
+  stepDeploy: { fa: 'استقرار Worker روی Cloudflare', en: 'Deploying Worker to Cloudflare' },
+  stepEnableUrl: { fa: 'فعال‌سازی آدرس workers.dev', en: 'Enabling workers.dev URL' },
+  stepVerify: { fa: 'بررسی استقرار', en: 'Verifying deployment' },
+  errFetch: { fa: 'خطا در دریافت کد از GitHub', en: 'Failed to fetch code from GitHub' },
+  errD1: { fa: 'خطا در ایجاد پایگاه داده D1', en: 'Failed to create D1 database' },
+  errDeploy: { fa: 'خطا در استقرار Worker', en: 'Failed to deploy Worker' },
+  errEnableUrl: { fa: 'خطا در فعال‌سازی آدرس workers.dev', en: 'Failed to enable workers.dev URL' },
+  warnNoSubdomain: {
+    fa: 'ساب‌دامنه workers.dev تنظیم نشده. لطفاً از داشبورد Cloudflare > Workers & Pages > Change subdomain تنظیم کنید',
+    en: 'workers.dev subdomain not configured. Please set it from Cloudflare Dashboard > Workers & Pages > Change subdomain'
+  },
+  retry: { fa: 'تلاش مجدد', en: 'Retry' },
+  cancel: { fa: 'لغو', en: 'Cancel' },
+  fetchDetail: { fa: 'دریافت آخرین نسخه از itsyebekhe/nahan', en: 'Fetching latest version from itsyebekhe/nahan' },
+  d1Detail: { fa: 'ساخت پایگاه داده SQLite در لبه Cloudflare', en: 'Creating SQLite database on Cloudflare edge' },
+  deployDetail: { fa: 'ایجاد Worker، آپلود کد و استقرار نسخه', en: 'Creating Worker, uploading code and deploying version' },
+  enableUrlDetail: { fa: 'ایجاد نسخه و استقرار صریح با فعال‌سازی workers.dev', en: 'Creating version and explicit deployment with workers.dev enabled' },
+  verifyDetail: { fa: 'بررسی دسترسی به Worker مستقر شده', en: 'Checking accessibility of deployed Worker' },
+
+  // ── Step 5: Success ──
+  successTitle: { fa: 'استقرار موفق!', en: 'Deployment Successful!' },
+  successSub: {
+    fa: 'نهان با موفقیت روی Cloudflare Workers مستقر شد',
+    en: 'Nahan has been successfully deployed on Cloudflare Workers'
+  },
+  labelUrl: { fa: 'آدرس پنل مدیریت', en: 'Dashboard URL' },
+  labelWorkerName: { fa: 'نام Worker', en: 'Worker Name' },
+  labelDBName: { fa: 'پایگاه داده D1', en: 'D1 Database' },
+  labelDBId: { fa: 'شناسه پایگاه داده', en: 'Database ID' },
+  labelDefaultPass: { fa: 'رمز عبور پیش‌فرض', en: 'Default Password' },
+  securityWarning: {
+    fa: '⚠️ بلافاصله پس از ورود، رمز عبور پیش‌فرض را از تب System تغییر دهید!',
+    en: '⚠️ Immediately change the default password from the System tab after login!'
+  },
+  openPanel: { fa: 'باز کردن پنل', en: 'Open Dashboard' },
+  newInstall: { fa: 'نصب جدید', en: 'New Install' },
+  copied: { fa: 'کپی شد!', en: 'Copied!' },
+  quickStart: { fa: 'شروع سریع', en: 'Quick Start' },
+  quickStartSteps: {
+    fa: [
+      'روی «باز کردن پنل» کلیک کنید',
+      'با رمز عبور پیش‌فرض وارد شوید',
+      'رمز عبور را از تب System تغییر دهید',
+      'کاربران خود را اضافه کنید و لذت ببرید!'
+    ],
+    en: [
+      'Click "Open Dashboard"',
+      'Login with the default password',
+      'Change the password from the System tab',
+      'Add your users and enjoy!'
+    ]
+  },
+
+  // ── Errors ──
+  errNetwork: { fa: 'خطای شبکه — اتصال اینترنت خود را بررسی کنید', en: 'Network error — check your internet connection' },
+  errCors: { fa: 'خطای CORS — ممکن است مرورگر شما درخواست را مسدود کرده باشد', en: 'CORS error — your browser may have blocked the request' },
+  errUnknown: { fa: 'خطای ناشناخته', en: 'Unknown error' },
+  errFetchAll: { fa: 'دریافت کد از تمام منابع ناموفق بود', en: 'Failed to fetch code from all sources' },
+  errCfApi: { fa: 'خطای Cloudflare API', en: 'Cloudflare API error' },
+  errCfCors: { fa: 'دسترسی مستقیم به Cloudflare API از مرورگر مسدود شده. از VPN استفاده کنید یا مرورگر دیگری امتحان کنید.', en: 'Direct browser access to Cloudflare API is blocked. Try a VPN or different browser.' },
+
+  // ── Connectivity / Proxy ──
+  connTitle: { fa: 'تنظیم پروکسی و بررسی اتصال', en: 'Proxy Setup & Connectivity' },
+  connSub: { fa: 'جهت جلوگیری از خطای CORS و ارور ۱۱۰۱، پروکسی شخصی خود را تنظیم کنید', en: 'Set up your personal proxy to avoid CORS and 1101 errors' },
+  connTesting: { fa: 'در حال بررسی وضعیت اتصال...', en: 'Checking connection status...' },
+  connOk: { fa: 'اتصال با موفقیت برقرار شد. در حال انتقال...', en: 'Connection established successfully. Proceeding...' },
+  connFail: { fa: 'اتصال مستقیم از مرورگر مسدود است (CORS).', en: 'Direct browser access blocked (CORS).' },
+  connFailReason: { fa: 'مرورگرها به دلایل امنیتی (CORS) اجازه ارتباط مستقیم با API کلودفلر را نمی‌دهند.', en: 'Browsers block direct requests to Cloudflare API due to CORS policy.' },
+  connProxyNeeded: { fa: 'جهت دور زدن محدودیت CORS مرورگر، طبق راهنمای زیر یک Worker پروکسی شخصی بسازید:', en: 'To bypass browser CORS, deploy a personal proxy Worker following the guide below:' },
+  useCustomProxy: { fa: 'استفاده از پروکسی شخصی', en: 'Use Personal Proxy' },
+  customProxyTitle: { fa: 'پروکسی شخصی', en: 'Personal Proxy' },
+  customProxyDesc: { fa: 'آدرس Worker پروکسی ساخته‌شده خود را وارد کنید', en: 'Enter your deployed proxy Worker URL' },
+  customProxyBtn: { fa: 'اتصال به پروکسی شخصی', en: 'Connect to Personal Proxy' },
+
+  proxyWarn1101Title: { fa: '⚠️ اخطار مهم: خطای ۱۱۰۱ در پروکسی پیش‌فرض', en: '⚠️ Important Notice: Error 1101 with Default Proxy' },
+  proxyWarn1101Desc: {
+    fa: 'استفاده از پروکسی اشتراکی و عمومی پیش‌فرض به دلیل سقف ترافیک همزمان و محدودیت ساب‌ریکوئست‌های کلودفلر ممکن است با <b>خطای ۱۱۰۱ (Worker threw exception)</b> مواجه شود. <b>اکیداً پیشنهاد می‌شود یک پروکسی شخصی رایگان بسازید.</b>',
+    en: 'Using the shared public default proxy frequently triggers <b>Error 1101 (Worker threw exception)</b> due to Cloudflare subrequest/traffic limits. <b>Creating your own free personal proxy is strongly recommended.</b>'
+  },
+
+  proxySetupTitle: { fa: '🚀 مراحل ساخت پروکسی شخصی (پیشنهادی - کمتر از ۱ دقیقه)', en: '🚀 Create Personal Proxy Steps (Recommended - < 1 min)' },
+  proxyStep1: { fa: 'روی دکمه زیر کلیک کنید تا بخش ساخت Worker در داشبورد کلودفلر باز شود:', en: 'Click the button below to open Worker creation in Cloudflare Dashboard:' },
+  proxyStep2: { fa: 'یک نام دلخواه انتخاب کرده و Worker را ایجاد کنید (مثلاً nahan-proxy):', en: 'Choose any name and create the Worker (e.g. nahan-proxy):' },
+  proxyStep3: { fa: 'کد زیر را کپی کرده و جایگزین کدهای پیش‌فرض Worker کنید:', en: 'Copy the code below and replace the default Worker code:' },
+  proxyStep4: { fa: 'روی دکمه «Deploy» کلیک کنید:', en: 'Click "Deploy":' },
+  proxyStep5: { fa: 'آدرس دامنه workers.dev ورکر ساخته‌شده را در کادر زیر وارد کنید:', en: 'Enter the deployed Worker URL below:' },
+  proxyCopied: { fa: 'کد پروکسی کپی شد!', en: 'Proxy code copied!' },
+  proxyUrlPlaceholder: { fa: 'https://nahan-proxy.<subdomain>.workers.dev', en: 'https://nahan-proxy.<subdomain>.workers.dev' },
+  proxyConnecting: { fa: 'در حال اتصال به پروکسی...', en: 'Connecting to proxy...' },
+  proxyConnected: { fa: 'اتصال به پروکسی با موفقیت برقرار شد!', en: 'Proxy connected successfully!' },
+  proxyFailed: { fa: 'اتصال به پروکسی ناموفق بود. لطفاً آدرس را بررسی کنید.', en: 'Failed to connect to proxy. Please check the URL.' },
+  openCfDashboard: { fa: 'باز کردن داشبورد کلودفلر (ساخت Worker)', en: 'Open Cloudflare Dashboard (Create Worker)' },
+  copyProxyCode: { fa: 'کپی کد پروکسی', en: 'Copy Proxy Code' },
+  connectProxy: { fa: 'اتصال به پروکسی و ادامه', en: 'Connect & Continue' },
+  useDefaultProxyOption: { fa: 'استفاده از پروکسی عمومی پیش‌فرض (با ریسک خطای ۱۱۰۱)', en: 'Use Shared Default Proxy (Prone to Error 1101)' },
+  defaultProxyWarningDetail: { fa: 'پروکسی پیش‌فرض به دلیل ترافیک اشتراکی ممکن است در زمان استقرار با خطای ۱۱۰۱ متوقف شود.', en: 'The default proxy may fail with Error 1101 during deployment due to heavy shared traffic.' },
+  connectDefaultBtn: { fa: 'تلاش با پروکسی پیش‌فرض', en: 'Try Default Proxy' },
+  skipProxy: { fa: 'تلاش مجدد اتصال مستقیم', en: 'Retry Direct Connection' },
+  proxySaved: { fa: 'آدرس پروکسی ذخیره شد. برای نصب‌های بعدی نیازی به تنظیم مجدد نیست.', en: 'Proxy URL saved. No need to set it up again for future installs.' },
+  generateNewName: { fa: 'تولید نام تصادفی جدید', en: 'Generate New Random Name' },
+  errWorkerName: {
+    fa: 'نام Worker نامعتبر. فقط حروف کوچک، اعداد و خط تیره مجاز است (حداقل ۳ کاراکتر)',
+    en: 'Invalid Worker name. Only lowercase, numbers, and hyphens allowed (min 3 chars)'
+  },
+};
+
+// ══════════════════════════════════════════════════════════
+//  STATE & HELPERS
+// ══════════════════════════════════════════════════════════
+function generateRandomWorkerName() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let rand = '';
+  let rand2 = '';
+  let rand3 = '';
+  for (let i = 0; i < 6; i++) {
+    rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    rand2 += chars.charAt(Math.floor(Math.random() * chars.length));
+    rand3 += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return rand + '-' + rand2 + '-' + rand3;
+}
+
+let lang = 'fa';
+let currentStep = 0;
+const totalSteps = 6;
+
+// Default proxy URL — hosted by the Nahan project. Override in localStorage if self-hosting.
+const DEFAULT_PROXY_URL = 'https://nahan-installer-proxy.iyebekhe.workers.dev';
+
+const state = {
+  isUpdate: false,
+  apiToken: '',
+  accountId: '',
+  accountName: '',
+  workerName: generateRandomWorkerName(),
+  dbName: 'iot_db',
+  dbId: '',
+  password: '',
+  tgToken: '',
+  tgAdminId: '',
+  apiRoute: 'sync',
+  workerCode: '',
+  workerVersion: '',
+  deployUrl: '',
+  proxyUrl: localStorage.getItem('nahan_proxy_url') || '',
+  directApiOk: null,
+};
+
+// ══════════════════════════════════════════════════════════
+//  TRANSLATION ENGINE
+// ══════════════════════════════════════════════════════════
+function t(key) {
+  const entry = T[key];
+  if (!entry) return key;
+  if (typeof entry === 'string') return entry;
+  return entry[lang] || entry.en || key;
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-t]').forEach(el => {
+    const key = el.getAttribute('data-t');
+    const val = t(key);
+    if (typeof val === 'string') el.textContent = val;
+  });
+  document.querySelectorAll('[data-t-html]').forEach(el => {
+    const key = el.getAttribute('data-t-html');
+    const val = t(key);
+    if (typeof val === 'string') el.innerHTML = val;
+  });
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+  document.body.className = lang === 'fa' ? 'rtl' : 'ltr';
+}
+
+function toggleLang() {
+  lang = lang === 'fa' ? 'en' : 'fa';
+  renderStep();
+}
+
+// ══════════════════════════════════════════════════════════
+//  CLOUDFLARE API
+// ══════════════════════════════════════════════════════════
+const CF_API = 'https://api.cloudflare.com/client/v4';
+
+async function cfFetch(path, options = {}) {
+  const method = options.method || 'GET';
+  const proxy = state.proxyUrl;
+
+  if (proxy) {
+    return cfFetchViaProxy(proxy, path, options);
+  }
+
+  const url = `${CF_API}${path}`;
+  const headers = {
+    'Authorization': `Bearer ${state.apiToken}`,
+    ...options.headers,
+  };
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  try {
+    console.log(`[CF API] ${method} ${path}`);
+    if (options.body instanceof FormData) {
+      console.log(`[CF API] Body: FormData (multipart)`);
+    } else if (options.body) {
+      console.log(`[CF API] Body (first 500 chars): ${options.body.substring(0, 500)}`);
+    }
+    const res = await fetch(url, { ...options, headers });
+    const json = await res.json();
+    console.log(`[CF API] ${method} ${path} → HTTP ${res.status}, success: ${json.success}`);
+    if (!json.success) {
+      const detail = json.errors?.map(e => e.message || e.code || JSON.stringify(e)).join('; ') || '';
+      console.error(`[CF API] ${method} ${path} → ERRORS:`, JSON.stringify(json.errors));
+      console.error(`[CF API] ${method} ${path} → MESSAGES:`, JSON.stringify(json.messages));
+      return { success: false, errors: [{ message: detail || `${t('errCfApi')} (HTTP ${res.status})` }], _raw: json, _status: res.status };
+    }
+    return json;
+  } catch (e) {
+    console.error(`[CF API] ${method} ${path} → EXCEPTION`, e);
+    if (e.name === 'TypeError' && e.message.includes('fetch')) {
+      return { success: false, errors: [{ message: t('errCfCors'), _detail: e.message }], _corsError: true };
+    }
+    return { success: false, errors: [{ message: `${t('errNetwork')}: ${e.message}` }] };
+  }
+}
+
+async function cfFetchViaProxy(proxy, path, options = {}) {
+  const method = options.method || 'GET';
+  const url = `${proxy}${path}`;
+  const headers = {
+    'Authorization': `Bearer ${state.apiToken}`,
+    'X-Proxy-Target': path,
+    ...options.headers,
+  };
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+  try {
+    console.log(`[CF Proxy] ${method} ${url} (target: ${path})`);
+    if (options.body instanceof FormData) {
+      console.log(`[CF Proxy] Body: FormData (multipart)`);
+    } else if (options.body) {
+      console.log(`[CF Proxy] Body (first 500 chars): ${options.body.substring(0, 500)}`);
+    }
+    const res = await fetch(url, { ...options, headers });
+    const text = await res.text();
+    let json;
+    try {
+      json = JSON.parse(text);
+    } catch (parseErr) {
+      console.error(`[CF Proxy] ${method} ${path} → Response not JSON:`, text.substring(0, 500));
+      return { success: false, errors: [{ message: `Proxy returned non-JSON response (HTTP ${res.status}): ${text.substring(0, 200)}` }], _raw: text, _status: res.status };
+    }
+    console.log(`[CF Proxy] ${method} ${path} → HTTP ${res.status}, success: ${json.success}`);
+    if (!json.success) {
+      const detail = json.errors?.map(e => e.message || e.code || JSON.stringify(e)).join('; ') || '';
+      console.error(`[CF Proxy] ${method} ${path} → ERRORS:`, JSON.stringify(json.errors));
+      console.error(`[CF Proxy] ${method} ${path} → MESSAGES:`, JSON.stringify(json.messages));
+      return { success: false, errors: [{ message: detail || `${t('errCfApi')} (HTTP ${res.status})` }], _raw: json };
+    }
+    return json;
+  } catch (e) {
+    console.error(`[CF Proxy] ${method} ${path} → EXCEPTION`, e);
+    return { success: false, errors: [{ message: `${t('errNetwork')}: ${e.message}` }] };
+  }
+}
+
+async function testDirectApi() {
+  try {
+    const res = await fetch(`${CF_API}/accounts`, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer test' },
+    });
+    if (res.status === 401 || res.status === 200 || res.status === 403) return true;
+    const json = await res.json().catch(() => null);
+    if (json && json.errors) return true;
+    return false;
+  } catch (e) {
+    console.warn('[testDirectApi] Direct API access blocked:', e.message);
+    return false;
+  }
+}
+
+async function fetchAccounts(token) {
+  // Fetch list of accounts the token has access to
+  const prevToken = state.apiToken;
+  state.apiToken = token;
+  const r = await cfFetch('/accounts');
+  state.apiToken = prevToken;
+  if (r.success && Array.isArray(r.result)) {
+    return { ok: true, accounts: r.result };
+  }
+  const errMsg = r.errors?.[0]?.message || '';
+  if (errMsg.includes('Authentication error') || errMsg.includes('Invalid access token')) {
+    return { ok: false, msg: t('tokenInvalid') };
+  }
+  return { ok: false, msg: errMsg || t('tokenInvalid') };
+}
+
+async function validateCredentials() {
+  const r = await cfFetch(`/accounts/${state.accountId}`);
+  if (r.success) {
+    state.accountName = r.result?.name || '';
+    return { ok: true };
+  }
+  const errMsg = r.errors?.[0]?.message || '';
+  if (errMsg.includes('Authentication error') || errMsg.includes('Invalid access token')) {
+    return { ok: false, msg: t('tokenInvalid') };
+  }
+  if (errMsg.includes('not found') || errMsg.includes('account')) {
+    return { ok: false, msg: t('accountInvalid') };
+  }
+  return { ok: false, msg: errMsg || t('validFail') };
+}
+
+async function fetchWorkerCode() {
+  const proxy = state.proxyUrl;
+  const filesToTry = ['_worker.encode.js', '_worker.encoded.js', '_worker.js'];
+
+  const errors = [];
+
+  for (const filename of filesToTry) {
+    const sources = proxy
+      ? [
+          { name: `Proxy → GitHub (${filename})`, url: `${proxy}/github`, viaProxy: true, githubUrl: `https://raw.githubusercontent.com/itsyebekhe/nahan/refs/heads/main/${filename}` },
+        ]
+      : [
+          { name: `jsDelivr CDN (${filename})`, url: `https://cdn.jsdelivr.net/gh/itsyebekhe/nahan@main/${filename}` },
+          { name: `GitHub API (${filename})`,    url: `https://api.github.com/repos/itsyebekhe/nahan/contents/${filename}?ref=main` },
+          { name: `GitHub Raw (${filename})`,    url: `https://raw.githubusercontent.com/itsyebekhe/nahan/refs/heads/main/${filename}` },
+        ];
+
+    for (const src of sources) {
+      try {
+        console.log(`[fetch] Trying ${src.name}: ${src.url}`);
+        const fetchOpts = src.viaProxy
+          ? { headers: { 'X-GitHub-Url': src.githubUrl } }
+          : {};
+        const res = await fetch(src.url, fetchOpts);
+        if (!res.ok) {
+          const err = `HTTP ${res.status} ${res.statusText}`;
+          console.warn(`[fetch] ${src.name} → ${err}`);
+          errors.push(`${src.name}: ${err}`);
+          continue;
+        }
+
+        let code;
+        if (src.name.includes('GitHub API')) {
+          const json = await res.json();
+          const bin = atob(json.content);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          code = new TextDecoder('utf-8').decode(bytes);
+        } else {
+          code = await res.text();
+        }
+
+        if (!code || code.length < 1000) {
+          console.warn(`[fetch] ${src.name} → response too small (${code.length} bytes)`);
+          errors.push(`${src.name}: invalid response (${code.length} bytes)`);
+          continue;
+        }
+
+        console.log(`[fetch] Downloaded ${filename} size: ${code.length} bytes (${(code.length / 1024).toFixed(1)} KB)`);
+        console.log(`[fetch] First 200 chars of ${filename}:\n${code.substring(0, 200)}`);
+        console.log(`[fetch] Last 200 chars of ${filename}:\n${code.substring(code.length - 200)}`);
+
+        const verMatch = code.match(/const\s+CURRENT_VERSION\s*=\s*["']([^"']+)["']/);
+        if (verMatch) {
+          state.workerVersion = verMatch[1];
+        } else {
+          try {
+            const vRes = await fetch('https://raw.githubusercontent.com/itsyebekhe/nahan/main/version');
+            if (vRes.ok) {
+              state.workerVersion = (await vRes.text()).trim();
+            }
+          } catch (ve) {}
+        }
+        state.workerCode = code;
+        console.log(`[fetch] ✓ ${src.name} succeeded (${(code.length / 1024).toFixed(0)} KB${state.workerVersion ? ', v' + state.workerVersion : ''})`);
+        return { ok: true, source: src.name };
+      } catch (e) {
+        console.error(`[fetch] ${src.name} → EXCEPTION`, e);
+        errors.push(`${src.name}: ${e.message}`);
+      }
+    }
+  }
+
+  const detail = errors.join(' | ');
+  console.error(`[fetch] All sources failed: ${detail}`);
+  return { ok: false, msg: `${t('errFetchAll')}\n\n${detail}` };
+}
+
+async function createD1Database() {
+  const r = await cfFetch(`/accounts/${state.accountId}/d1/database`, {
+    method: 'POST',
+    body: JSON.stringify({ name: state.dbName }),
+  });
+  if (r.success) {
+    state.dbId = r.result?.uuid || r.result?.database_id || '';
+    return { ok: true };
+  }
+  const errMsg = r.errors?.[0]?.message || '';
+  if (errMsg.includes('already exists') || errMsg.includes('already_exists') || errMsg.includes('name is already taken')) {
+    return await findExistingD1();
+  }
+  return { ok: false, msg: errMsg || t('errD1') };
+}
+
+async function findExistingD1() {
+  const r = await cfFetch(`/accounts/${state.accountId}/d1/database`);
+  if (r.success && Array.isArray(r.result)) {
+    const db = r.result.find(d => d.name === state.dbName);
+    if (db) {
+      state.dbId = db.uuid || db.database_id || '';
+      return { ok: true, existed: true };
+    }
+  }
+  return { ok: false, msg: r.errors?.[0]?.message || t('errD1') };
+}
+
+async function deployWorker() {
+  // Deploy using stable multipart PUT API.
+  // This creates the Worker AND the service resource in one call,
+  // which is required for the services API to enable workers.dev.
+  //
+  // Flow: PUT /workers/scripts/{name} → enable subdomain → verify
+
+  console.log('[Deploy] === Starting deployment (stable PUT + subdomain enable) ===');
+  console.log('[Deploy] Worker name:', state.workerName);
+  console.log('[Deploy] DB ID:', state.dbId);
+  console.log('[Deploy] Worker code length:', state.workerCode?.length, 'bytes');
+
+  // Step 1: Upload code via stable multipart PUT
+  const uploadResult = await deployWorkerStable();
+  if (!uploadResult.ok) {
+    console.error('[Deploy] Stable upload failed:', uploadResult.msg);
+    return uploadResult;
+  }
+  console.log('[Deploy] ✓ Stable upload succeeded');
+
+  // Step 2: Create explicit deployment to make the worker live
+  console.log('[Deploy] Creating deployment...');
+  const deployPath = `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/deployments`;
+  const deployBody = {
+    strategy: 'simple',
+    manifest: {
+      'worker.js': {
+        file: 'worker.js'
+      }
+    }
+  };
+  const deployRes = await cfFetch(deployPath, { method: 'POST', body: JSON.stringify(deployBody) });
+  console.log('[Deploy] Deployment result:', deployRes.success, 'HTTP:', deployRes._status);
+  if (!deployRes.success) {
+    console.warn('[Deploy] Deployment creation failed, but worker may still be live:', JSON.stringify(deployRes.errors));
+  } else {
+    console.log('[Deploy] ✓ Explicit deployment created');
+  }
+
+  // Step 3: Enable workers.dev route via services API
+  console.log('[Deploy] Enabling workers.dev route...');
+  const enableRes = await cfFetch(
+    `/accounts/${state.accountId}/workers/services/${encodeURIComponent(state.workerName)}/environments/production/subdomain`,
+    { method: 'POST', body: JSON.stringify({ enabled: true }) }
+  );
+  console.log('[Deploy] Enable subdomain success:', enableRes.success, 'HTTP:', enableRes._status);
+  if (enableRes.success) {
+    console.log('[Deploy] ✓ workers.dev route enabled');
+    return { ok: true, via: 'stable+deploy+services' };
+  }
+
+  // Subdomain enablement failed — log but don't fail.
+  console.warn('[Deploy] Enable subdomain errors:', JSON.stringify(enableRes.errors));
+  console.warn('[Deploy] Enable subdomain messages:', JSON.stringify(enableRes.messages));
+  console.log('[Deploy] Proceeding — subdomain may already be enabled');
+  return { ok: true, via: 'stable+deploy' };
+}
+
+async function deployWorkerStable() {
+  // Stable multipart PUT API — creates Worker, uploads code, and deploys in one request.
+
+  console.log('[Stable] === Multipart PUT upload ===');
+
+  const MODULE_FILENAME = 'worker.js';
+
+  // Inject config into worker code
+  let code = state.workerCode;
+
+  // Inject custom password
+  if (state.password && state.password !== 'admin') {
+    code = code.replace(/masterKey\s*[=:]\s*['"]admin['"]/g, `masterKey: '${state.password}'`);
+    code = code.replace(/MASTER_KEY\s*=\s*['"]admin['"]/g, `MASTER_KEY = '${state.password}'`);
+    code = code.replace(/['"]admin['"]\s*\/\/\s*default\s*password/gi, `'${state.password}' // custom password`);
+    code = code.replace(/password\s*[=:]\s*['"]admin['"]/g, `password: '${state.password}'`);
+    console.log('[Stable] Injected custom password');
+  }
+
+  // Inject worker name, account ID, and API token into SYSTEM_DEFAULTS
+  if (state.workerName) {
+    code = code.replace(/cfWorkerName\s*:\s*['"][^'"]*['"]/g, `cfWorkerName: "${state.workerName}"`);
+  }
+  if (state.accountId) {
+    code = code.replace(/cfAccountId\s*:\s*['"][^'"]*['"]/g, `cfAccountId: "${state.accountId}"`);
+  }
+  if (state.apiToken) {
+    code = code.replace(/cfApiToken\s*:\s*['"][^'"]*['"]/g, `cfApiToken: "${state.apiToken}"`);
+  }
+  // Inject API route
+  if (state.apiRoute && state.apiRoute !== 'sync') {
+    code = code.replace(/apiRoute\s*:\s*['"][^'"]*['"]/g, `apiRoute: "${state.apiRoute}"`);
+  }
+  // Inject Telegram bot token
+  if (state.tgToken) {
+    code = code.replace(/tgToken\s*:\s*['"][^'"]*['"]/g, `tgToken: "${state.tgToken}"`);
+  }
+  // Inject Telegram admin ID
+  if (state.tgAdminId) {
+    code = code.replace(/tgAdminId\s*:\s*['"][^'"]*['"]/g, `tgAdminId: "${state.tgAdminId}"`);
+  }
+  console.log('[Stable] Injected cfWorkerName, cfAccountId, cfApiToken, apiRoute, tgToken, tgAdminId');
+
+  const metadata = {
+    main_module: MODULE_FILENAME,
+    compatibility_date: '2024-09-22',
+    compatibility_flags: ['nodejs_compat'],
+    bindings: [
+      {
+        name: 'IOT_DB',
+        type: 'd1',
+        id: state.dbId,
+      }
+    ],
+  };
+
+  console.log('[Stable] Metadata:', JSON.stringify(metadata, null, 2));
+  console.log('[Stable] Code size:', state.workerCode?.length, 'bytes');
+
+  const form = new FormData();
+  const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+  const scriptBlob = new Blob([code], { type: 'application/javascript+module' });
+
+  form.append('metadata', metadataBlob);
+  form.append(MODULE_FILENAME, scriptBlob, MODULE_FILENAME);
+
+  const path = `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}`;
+  const r = await cfFetch(path, { method: 'PUT', body: form });
+
+  console.log('[Stable] success:', r.success, 'HTTP:', r._status);
+  if (r.result) {
+    console.log('[Stable] handlers:', JSON.stringify(r.result?.handlers));
+    console.log('[Stable] has_modules:', r.result?.has_modules);
+  }
+  if (!r.success) {
+    console.error('[Stable] ERRORS:', JSON.stringify(r.errors));
+  }
+
+  if (r.success) {
+    console.log('[Stable] ✓ Upload succeeded');
+    return { ok: true };
+  }
+
+  const errMsg = r.errors?.[0]?.message || '';
+  return { ok: false, msg: errMsg || t('errDeploy') };
+}
+
+async function verifyBindings() {
+  const r = await cfFetch(`/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/settings`);
+  if (r.success && r.result?.bindings) {
+    const d1 = r.result.bindings.find(b => b.name === 'IOT_DB');
+    return { ok: !!d1, binding: d1 };
+  }
+  return { ok: false };
+}
+
+async function fetchExistingWorkerBindings() {
+  console.log(`[Update] Fetching existing bindings for worker: ${state.workerName}`);
+  const path = `/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/settings`;
+  const r = await cfFetch(path);
+  
+  if (r.success && r.result?.bindings) {
+    const d1Binding = r.result.bindings.find(b => b.name === 'IOT_DB' || b.type === 'd1');
+    if (d1Binding) {
+      state.dbId = d1Binding.id;
+      console.log(`[Update] Found existing D1 Binding ID: ${state.dbId}`);
+      return { ok: true, dbId: d1Binding.id };
+    }
+  }
+  
+  // If no binding found in settings, attempt to search account D1 DBs as fallback
+  console.warn('[Update] No D1 binding found in worker settings. Searching account D1 databases...');
+  return await findExistingD1();
+}
+
+async function enableWorkersDevUrl() {
+  // Construct the workers.dev URL from the account's subdomain.
+  // Subdomain enablement is done in deployWorker() via the services API.
+
+  console.log('[EnableUrl] === Constructing workers.dev URL ===');
+
+  const subdomainRes = await cfFetch(`/accounts/${state.accountId}/workers/subdomain`);
+  console.log('[EnableUrl] Subdomain response:', JSON.stringify(subdomainRes));
+
+  if (!subdomainRes.success || !subdomainRes.result?.subdomain) {
+    console.warn('[EnableUrl] No workers.dev subdomain found for this account');
+    return { ok: false, noSubdomain: true, msg: t('warnNoSubdomain') };
+  }
+
+  const subdomain = subdomainRes.result.subdomain;
+  state.deployUrl = `https://${state.workerName}.${subdomain}.workers.dev`;
+  console.log('[EnableUrl] Workers.dev URL:', state.deployUrl);
+
+  return { ok: true, subdomain };
+}
+
+async function verifyDeployment() {
+  const testUrl = state.deployUrl;
+  if (!testUrl) {
+    console.warn('[Verify] No deploy URL to verify');
+    return { ok: false };
+  }
+
+  try {
+    // Method 1: Try fetching the URL directly (may fail due to CORS but connection still works)
+    console.log('[Verify] Testing URL:', testUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    
+    try {
+      const testRes = await fetch(testUrl, { 
+        method: 'GET', 
+        mode: 'no-cors',
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
+      // With no-cors, status is 0 (opaque) — any response means the server is reachable
+      console.log('[Verify] URL reachable (status:', testRes.status, ', type:', testRes.type, ')');
+      return { ok: true };
+    } catch (e) {
+      clearTimeout(timeoutId);
+      console.warn('[Verify] Direct fetch failed:', e.message);
+    }
+
+    // Method 2: Try to ping the worker via the Cloudflare API
+    try {
+      const settingsRes = await cfFetch(`/accounts/${state.accountId}/workers/scripts/${encodeURIComponent(state.workerName)}/settings`);
+      if (settingsRes.success && settingsRes.result) {
+        console.log('[Verify] Worker exists in Cloudflare (confirmed via API)');
+        return { ok: true };
+      }
+    } catch (e) {
+      console.warn('[Verify] API check failed:', e.message);
+    }
+
+    // Method 3: Check if the subdomain is active
+    try {
+      const subdomainRes = await cfFetch(`/accounts/${state.accountId}/workers/subdomain`);
+      if (subdomainRes.success && subdomainRes.result?.subdomain) {
+        console.log('[Verify] Subdomain exists:', subdomainRes.result.subdomain);
+        // Worker exists and subdomain exists — likely just needs more propagation time
+        return { ok: true };
+      }
+    } catch (e) {
+      console.warn('[Verify] Subdomain check failed:', e.message);
+    }
+
+    return { ok: false };
+  } catch (e) {
+    console.warn('[Verify] Verification error:', e.message);
+    return { ok: false };
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  SAVED PANELS LOCALSTORAGE MANAGER
+// ══════════════════════════════════════════════════════════
+function getSavedPanels() {
+  try {
+    return JSON.parse(localStorage.getItem('nahan_saved_panels') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCurrentPanel() {
+  if (!state.workerName || !state.accountId || !state.apiToken) return;
+
+  const panels = getSavedPanels();
+  const id = `${state.workerName}_${state.accountId}`;
+  const existingIdx = panels.findIndex(p => p.id === id || p.workerName === state.workerName);
+
+  const entry = {
+    id: id,
+    workerName: state.workerName,
+    accountId: state.accountId,
+    apiToken: state.apiToken,
+    deployUrl: state.deployUrl,
+    dbName: state.dbName,
+    dbId: state.dbId,
+    apiRoute: state.apiRoute,
+    updatedAt: Date.now()
+  };
+
+  if (existingIdx >= 0) {
+    panels[existingIdx] = { ...panels[existingIdx], ...entry };
+  } else {
+    panels.unshift(entry);
+  }
+
+  localStorage.setItem('nahan_saved_panels', JSON.stringify(panels));
+  console.log('[Storage] Saved panel configuration to localStorage:', entry);
+}
+
+function deleteSavedPanel(id, event) {
+  if (event) event.stopPropagation();
+  let panels = getSavedPanels();
+  panels = panels.filter(p => p.id !== id && p.workerName !== id);
+  localStorage.setItem('nahan_saved_panels', JSON.stringify(panels));
+  renderStep(); // Refresh Welcome UI
+}
+
+function quickUpdatePanel(id) {
+  const panels = getSavedPanels();
+  const target = panels.find(p => p.id === id || p.workerName === id);
+  if (!target) return;
+
+  // Load saved credentials & settings into state
+  state.isUpdate = true;
+  state.workerName = target.workerName;
+  state.accountId = target.accountId;
+  state.apiToken = target.apiToken;
+  state.dbName = target.dbName || 'iot_db';
+  state.dbId = target.dbId || '';
+  state.apiRoute = target.apiRoute || 'sync';
+  state.deployUrl = target.deployUrl || '';
+
+  // Jump straight to connectivity check & credential validation
+  goStep(1);
+}
+
+// ══════════════════════════════════════════════════════════
+//  STEP RENDERERS
+// ══════════════════════════════════════════════════════════
+
+function renderStepsIndicator() {
+  let html = '';
+  for (let i = 0; i < totalSteps; i++) {
+    let cls = 'step-dot';
+    if (i === currentStep) cls += ' active';
+    else if (i < currentStep) cls += ' done';
+    html += `<div class="${cls}"></div>`;
+  }
+  document.getElementById('stepsIndicator').innerHTML = html;
+}
+
+function renderStep() {
+  renderStepsIndicator();
+  const el = document.getElementById('stepContent');
+  switch (currentStep) {
+    case 0: el.innerHTML = renderWelcome(); break;
+    case 1: el.innerHTML = renderConnTest(); runConnectivityTest(); break;
+    case 2: el.innerHTML = renderCredentials(); break;
+    case 3: el.innerHTML = renderConfig(); break;
+    case 4: el.innerHTML = renderDeploy(); runDeployment(); break;
+    case 5: el.innerHTML = renderSuccess(); break;
+  }
+  applyTranslations();
+}
+
+// ── Welcome ──
+function renderWelcome() {
+  const savedPanels = getSavedPanels();
+
+  let savedPanelsHtml = '';
+  if (savedPanels.length > 0) {
+    savedPanelsHtml = `
+    <div style="margin-top:24px;margin-bottom:20px">
+      <div style="font-weight:700;color:var(--cyan);margin-bottom:12px;font-size:1rem;display:flex;align-items:center;gap:8px">
+        <span>📱</span> <span data-t="savedPanelsTitle"></span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+${savedPanels.map(p => {
+  const dateStr = p.updatedAt ? new Date(p.updatedAt).toLocaleDateString(lang === 'fa' ? 'fa-IR' : 'en-US') : '';
+  return `
+  <div class="saved-panel-card" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div>
+      <div style="font-weight:700;font-family:var(--font-mono);font-size:.95rem;color:var(--text)">${esc(p.workerName)}</div>
+      <div style="font-size:.78rem;color:var(--text2);margin-top:2px;overflow-wrap:anywhere">
+        ${p.deployUrl ? `<a href="${esc(p.deployUrl)}" target="_blank" style="color:var(--cyan);text-decoration:none">${esc(p.deployUrl)}</a>` : ''}
+        ${dateStr ? ` • <span data-t="lastUpdatedLabel"></span> ${dateStr}` : ''}
+      </div>
+    </div>
+    <div class="saved-panel-actions" style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-sm" onclick="quickUpdatePanel('${esc(p.id)}')">
+        <span data-t="quickUpdateBtn"></span>
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="deleteSavedPanel('${esc(p.id)}', event)" style="color:var(--red);padding:6px 12px" title="${t('deletePanelBtn')}">
+        🗑️
+      </button>
+    </div>
+  </div>`;
+}).join('')}
+      </div>
+    </div>
+    <div class="divider"></div>`;
+  }
+
+  return `
+<div class="card step-panel">
+  <div class="card-title" data-t="welcomeTitle"></div>
+  <div class="card-subtitle" data-t="welcomeSub"></div>
+
+  <p style="color:var(--text2);font-size:.9rem;margin-bottom:20px" data-t="welcomeDesc"></p>
+
+  ${savedPanelsHtml}
+
+  <div style="margin-bottom:20px">
+    <div style="font-weight:600;margin-bottom:10px;font-size:.95rem" data-t="whatCreated"></div>
+    <div class="feature-grid">
+      <div class="feature-item"><span class="feature-icon">🗄️</span><span data-t="createD1"></span></div>
+      <div class="feature-item"><span class="feature-icon">⚡</span><span data-t="createWorker"></span></div>
+      <div class="feature-item"><span class="feature-icon">🔗</span><span data-t="createBinding"></span></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div style="font-weight:600;margin-bottom:10px;font-size:.95rem" data-t="permissionsTitle"></div>
+  <ul class="perm-list">
+    <li class="perm-item"><span class="perm-icon">🔐</span><span data-t="permD1"></span></li>
+    <li class="perm-item"><span class="perm-icon">📦</span><span data-t="permWorkers"></span></li>
+    <li class="perm-item"><span class="perm-icon">👤</span><span data-t="permAccount"></span></li>
+    <li class="perm-item"><span class="perm-icon">🌐</span><span data-t="permDNS"></span></li>
+  </ul>
+
+  <div class="btn-group" style="flex-wrap:wrap;gap:10px">
+    <button class="btn btn-primary" onclick="startFlow(false)" data-t="letsStart"></button>
+    <button class="btn btn-secondary" onclick="startFlow(true)" data-t="updateWorkerBtn"></button>
+  </div>
+</div>`;
+}
+
+// Add this helper function below renderWelcome()
+function startFlow(isUpdateMode) {
+  state.isUpdate = isUpdateMode;
+  goStep(1);
+}
+
+// ── Connectivity Test / Proxy Setup ──
+const PROXY_CODE = `// Nahan Installer Proxy Worker
 // Relays Cloudflare API calls for the web installer.
 // Restricted to installer-required API paths only.
 
@@ -22,13 +1312,13 @@ function isAllowedPath(path) {
   if (path === '/accounts' || path === '/accounts/') return true;
   if (!path.startsWith('/accounts/')) return false;
   const patterns = [
-    /^\/accounts\/[^/]+\/d1\/database/,                // D1 create, list, delete
-    /^\/accounts\/[^/]+\/workers\/scripts\//,           // Worker upload (PUT), settings, delete
-    /^\/accounts\/[^/]+\/workers\/scripts\/[^/]+\/deployments$/, // Worker deployments
-    /^\/accounts\/[^/]+\/workers\/workers(\/|$)/,       // Worker create, list, get, versions (Beta API)
-    /^\/accounts\/[^/]+\/workers\/services\//,          // Worker services (subdomain enablement)
-    /^\/accounts\/[^/]+\/workers\/subdomain$/,          // Workers.dev subdomain
-    /^\/accounts\/[^/]+$/,                              // Account info
+    /^\\/accounts\\/[^/]+\\/d1\\/database/,                // D1 create, list, delete
+    /^\\/accounts\\/[^/]+\\/workers\\/scripts\\//,           // Worker upload (PUT), settings, delete
+    /^\\/accounts\\/[^/]+\\/workers\\/scripts\\/[^/]+\\/deployments$/, // Worker deployments
+    /^\\/accounts\\/[^/]+\\/workers\\/workers(\\/|$)/,       // Worker create, list, get, versions (Beta API)
+    /^\\/accounts\\/[^/]+\\/workers\\/services\\//,          // Worker services (subdomain enablement)
+    /^\\/accounts\\/[^/]+\\/workers\\/subdomain$/,          // Workers.dev subdomain
+    /^\\/accounts\\/[^/]+$/,                              // Account info
   ];
   return patterns.some(p => p.test(path));
 }
@@ -78,7 +1368,7 @@ export default {
     }
 
     try {
-      const cfUrl = `https://api.cloudflare.com/client/v4${target}`;
+      const cfUrl = 'https://api.cloudflare.com/client/v4' + target;
       const opts = {
         method: request.method,
         headers: { Authorization: apiToken }
@@ -88,16 +1378,15 @@ export default {
         const ct = request.headers.get('Content-Type') || '';
         if (ct.includes('multipart/form-data')) {
           const formData = await request.formData();
-          // Log form data fields for debugging
           const fieldNames = [];
           for (const [key, value] of formData.entries()) {
             if (value instanceof File) {
-              fieldNames.push(`${key}(file: ${value.name}, ${value.size} bytes, ${value.type})`);
+              fieldNames.push(key + '(file: ' + value.name + ', ' + value.size + ' bytes, ' + value.type + ')');
             } else {
-              fieldNames.push(`${key}(string: ${String(value).length} chars)`);
+              fieldNames.push(key + '(string: ' + String(value).length + ' chars)');
             }
           }
-          console.log(`[Proxy] ${request.method} ${target} multipart fields: [${fieldNames.join(', ')}]`);
+          console.log('[Proxy] ' + request.method + ' ' + target + ' multipart fields: [' + fieldNames.join(', ') + ']');
           opts.body = formData;
         } else {
           opts.body = await request.text();
@@ -105,20 +1394,795 @@ export default {
         }
       }
 
-      console.log(`[Proxy] ${request.method} ${cfUrl}`);
+      console.log('[Proxy] ' + request.method + ' ' + cfUrl);
       const resp = await fetch(cfUrl, opts);
       const respText = await resp.text();
-      console.log(`[Proxy] Response: HTTP ${resp.status}, ${respText.length} bytes`);
+      console.log('[Proxy] Response: HTTP ' + resp.status + ', ' + respText.length + ' bytes');
       if (resp.status >= 400) {
-        console.log(`[Proxy] Error response: ${respText.substring(0, 500)}`);
+        console.log('[Proxy] Error response: ' + respText.substring(0, 500));
       }
       return new Response(respText, {
         status: resp.status,
         headers: { 'Content-Type': 'application/json', ...CORS },
       });
     } catch (e) {
-      console.error(`[Proxy] Error:`, e.message);
+      console.error('[Proxy] Error:', e.message);
       return jsonResp({ error: e.message }, 502);
     }
   },
-};
+};`;
+
+function renderConnTest() {
+  return `
+<div class="card step-panel">
+  <div class="card-title" data-t="connTitle"></div>
+  <div class="card-subtitle" data-t="connSub"></div>
+
+  <div class="conn-status conn-testing" id="connStatus">
+    <div class="spinner"></div>
+    <span data-t="connTesting"></span>
+  </div>
+
+  <div id="connResult"></div>
+
+  <div class="btn-group" style="margin-top:20px">
+    <button class="btn btn-secondary" onclick="goStep(0)" data-t="back"></button>
+  </div>
+</div>`;
+}
+
+function renderProxySetup() {
+  return `
+  <div style="margin-top:16px">
+    <!-- Error 1101 Warning Banner -->
+    <div class="alert alert-warn" style="margin-bottom:18px;border-width:2px;background:rgba(255,170,0,.1);border-color:var(--yellow)">
+      <span class="alert-icon" style="font-size:1.3rem">⚠️</span>
+      <div>
+        <div style="font-weight:700;font-size:.95rem;margin-bottom:6px;color:var(--yellow)" data-t="proxyWarn1101Title"></div>
+        <div style="font-size:.85rem;color:var(--text);line-height:1.7" data-t-html="proxyWarn1101Desc"></div>
+      </div>
+    </div>
+
+    <!-- Personal Proxy Guide (Primary & Recommended) -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:20px">
+      <div style="font-weight:700;color:var(--cyan);font-size:1rem;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        <span data-t="proxySetupTitle"></span>
+      </div>
+
+      <ol class="steps-list">
+        <li>
+          <span data-t="proxyStep1"></span><br>
+          <a href="https://dash.cloudflare.com/?to=/:account/workers-and-pages/create" target="_blank" rel="noopener" class="btn btn-secondary btn-sm" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px">
+            <span data-t="openCfDashboard"></span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 7v3a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1h3M7 1h4v4M5 7L10.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </li>
+        <li><span data-t-html="proxyStep2"></span></li>
+        <li>
+          <span data-t="proxyStep3"></span>
+          <div class="code-block" id="proxyCodeBlock" style="max-height:220px;overflow:auto;white-space:pre;font-size:.78rem">${esc(PROXY_CODE)}</div>
+          <button class="btn btn-sm btn-secondary" onclick="copyProxyCode()" style="margin-top:4px" id="btnCopyProxy">
+            <span data-t="copyProxyCode"></span>
+          </button>
+        </li>
+        <li><span data-t="proxyStep4"></span></li>
+        <li>
+          <span data-t="proxyStep5"></span>
+          <div style="display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap">
+            <input type="text" class="form-input" id="inpProxyUrl" value="${esc(state.proxyUrl)}"
+                   placeholder="https://nahan-proxy.yourname.workers.dev" spellcheck="false"
+                   style="direction:ltr;text-align:left;flex:1;min-width:240px">
+            <button class="btn btn-primary btn-sm" onclick="testProxyConnection()" id="btnTestProxy" style="min-height:42px;padding:0 18px">
+              <span data-t="connectProxy"></span>
+            </button>
+          </div>
+          <div id="proxyTestResult" style="margin-top:10px"></div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Optional / Fallback Default Proxy Section -->
+    <details style="background:var(--bg2);border:1px dashed var(--border);border-radius:var(--radius);padding:12px 16px">
+      <summary style="cursor:pointer;font-size:.85rem;color:var(--text2);font-weight:600;display:flex;align-items:center;gap:6px">
+        <span data-t="useDefaultProxyOption"></span>
+      </summary>
+      <div style="margin-top:10px;font-size:.82rem;color:var(--text2);line-height:1.6">
+        <div style="margin-bottom:10px" data-t="defaultProxyWarningDetail"></div>
+        <button class="btn btn-secondary btn-sm" onclick="connectDefaultProxy()" id="btnDefaultConnect">
+          ⚡ <span data-t="connectDefaultBtn"></span>
+        </button>
+        <div id="defaultProxyResult" style="margin-top:8px"></div>
+      </div>
+    </details>
+  </div>`;
+}
+
+function copyProxyCode() {
+  navigator.clipboard.writeText(PROXY_CODE).then(() => {
+    const btn = document.getElementById('btnCopyProxy');
+    if (btn) {
+      btn.textContent = t('proxyCopied');
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = t('copyProxyCode');
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+  });
+}
+
+async function testProxyConnection() {
+  const inp = document.getElementById('inpProxyUrl');
+  if (!inp) return;
+  const url = inp.value.trim().replace(/\/+$/, '');
+  const btn = document.getElementById('btnTestProxy');
+  const resultEl = document.getElementById('proxyTestResult');
+
+  if (!url) {
+    if (resultEl) resultEl.innerHTML = alert('error', lang === 'fa' ? 'لطفاً آدرس پروکسی را وارد کنید' : 'Please enter proxy URL');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner"></div>`;
+  }
+  if (resultEl) resultEl.innerHTML = '';
+
+  try {
+    const res = await fetch(`${url}/health`);
+    const json = await res.json();
+    if (json.ok) {
+      state.proxyUrl = url;
+      localStorage.setItem('nahan_proxy_url', url);
+      const statusEl = document.getElementById('connStatus');
+      if (statusEl) {
+        statusEl.className = 'conn-status conn-ok';
+        statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+      }
+      if (resultEl) resultEl.innerHTML = alert('success', t('proxyConnected'));
+      setTimeout(() => goStep(2), 1000);
+      return;
+    } else {
+      if (resultEl) resultEl.innerHTML = alert('error', t('proxyFailed'));
+    }
+  } catch (e) {
+    if (resultEl) resultEl.innerHTML = alert('error', `${t('proxyFailed')}: ${e.message}`);
+  }
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<span data-t="connectProxy"></span>`;
+    applyTranslations();
+  }
+}
+
+async function connectDefaultProxy() {
+  const resultEl = document.getElementById('defaultProxyResult') || document.getElementById('proxyTestResult');
+  const btn = document.getElementById('btnDefaultConnect');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<div class="spinner"></div>`;
+  }
+
+  try {
+    const r = await fetch(`${DEFAULT_PROXY_URL}/health`);
+    const j = await r.json();
+    if (j.ok) {
+      state.proxyUrl = DEFAULT_PROXY_URL;
+      const statusEl = document.getElementById('connStatus');
+      if (statusEl) {
+        statusEl.className = 'conn-status conn-ok';
+        statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+      }
+      if (resultEl) resultEl.innerHTML = alert('success', t('proxyConnected'));
+      setTimeout(() => goStep(2), 1000);
+      return;
+    }
+  } catch (e) { /* failed */ }
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `⚡ <span>${t('connectDefaultBtn')}</span>`;
+  }
+  if (resultEl) resultEl.innerHTML = alert('error', t('proxyFailed'));
+}
+
+async function runConnectivityTest() {
+  const statusEl = document.getElementById('connStatus');
+  const resultEl = document.getElementById('connResult');
+
+  // If we have a saved custom proxy, test it first
+  if (state.proxyUrl) {
+    try {
+      const r = await fetch(`${state.proxyUrl}/health`);
+      const j = await r.json();
+      if (j.ok) {
+        state.directApiOk = false;
+        statusEl.className = 'conn-status conn-ok';
+        statusEl.innerHTML = `<span>✓</span><span>${t('proxyConnected')}</span>`;
+        setTimeout(() => goStep(2), 1200);
+        return;
+      }
+    } catch (e) {
+      state.proxyUrl = '';
+      localStorage.removeItem('nahan_proxy_url');
+    }
+  }
+
+  // Test direct API access
+  const directOk = await testDirectApi();
+  state.directApiOk = directOk;
+
+  if (directOk) {
+    statusEl.className = 'conn-status conn-ok';
+    statusEl.innerHTML = `<span>✓</span><span>${t('connOk')}</span>`;
+    setTimeout(() => goStep(2), 1000);
+    return;
+  }
+
+  // Direct failed (normal in browsers due to CORS) — show proxy setup immediately
+  statusEl.className = 'conn-status conn-fail';
+  statusEl.innerHTML = `<span>✗</span><span>${t('connFail')}</span>`;
+  resultEl.innerHTML = renderProxySetup();
+  applyTranslations();
+}
+
+// ── Credentials ──
+function renderCredentials() {
+  // Pre-filled token creation URL with required permissions.
+  const tokenPermissions = [
+    { key: 'workers_scripts', type: 'edit' },
+    { key: 'd1', type: 'edit' },
+    { key: 'account_settings', type: 'read' },
+    { key: 'account_analytics', type: 'read' },
+  ];
+  const tokenName = 'Nahan Installer';
+  const permParam = encodeURIComponent(JSON.stringify(tokenPermissions));
+  const nameParam = encodeURIComponent(tokenName);
+  const createTokenUrl = `https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=${permParam}&accountId=*&zoneId=all&name=${nameParam}`;
+
+  return `
+<div class="card step-panel">
+  <div class="card-title" data-t="credTitle"></div>
+  <div class="card-subtitle" data-t="credSub"></div>
+
+  <div id="credAlert"></div>
+
+  <div class="form-group">
+    <label class="form-label" data-t="labelToken"></label>
+
+    <!-- Step-by-step guide -->
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px">
+      <div style="font-weight:600;color:var(--cyan);margin-bottom:10px;font-size:.9rem">📋 ${lang === 'fa' ? 'راهنمای ساخت API Token:' : 'How to create an API Token:'}</div>
+      <ol style="padding-${lang === 'fa' ? 'right' : 'left'}:20px;margin:0;color:var(--text2);font-size:.85rem;line-height:2">
+        <li>${lang === 'fa' ? 'روی دکمه زیر کلیک کنید تا صفحه ساخت توکن در Cloudflare باز شود' : 'Click the button below to open the token creation page on Cloudflare'}</li>
+        <li>${lang === 'fa' ? 'در صفحه Cloudflare، پایین بروید و دکمه <b style="color:var(--text)">Create Token</b> را بزنید' : 'On the Cloudflare page, scroll down and click <b style="color:var(--text)">Create Token</b>'}</li>
+        <li>${lang === 'fa' ? 'دسترسی‌ها از پیش انتخاب شده‌اند. فقط دکمه <b style="color:var(--text)">Continue to summary</b> را بزنید' : 'Permissions are pre-selected. Just click <b style="color:var(--text)">Continue to summary</b>'}</li>
+        <li>${lang === 'fa' ? 'روی <b style="color:var(--text)">Create Token</b> کلیک کنید' : 'Click <b style="color:var(--text)">Create Token</b>'}</li>
+        <li>${lang === 'fa' ? 'توکن را کپی کنید و در باکس زیر وارد کنید' : 'Copy the token and paste it in the box below'}</li>
+      </ol>
+    </div>
+
+    <a href="${createTokenUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;text-decoration:none;font-size:.85rem">
+      <span data-t="createTokenBtn"></span>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 7v3a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1h3M7 1h4v4M5 7L10.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+
+    <input type="password" class="form-input" id="inpToken" value="${esc(state.apiToken)}"
+           placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+    <div class="form-hint" data-t="hintToken"></div>
+  </div>
+
+  <!-- Account ID: auto-filled after token validation -->
+  <div class="form-group" id="accountGroup" style="display:none">
+    <label class="form-label" data-t="labelAccount"></label>
+    <select class="form-input" id="inpAccount" style="direction:ltr;text-align:left;cursor:pointer" onchange="onAccountSelect()">
+      <option value="">${lang === 'fa' ? 'در حال دریافت اکانت‌ها...' : 'Fetching accounts...'}</option>
+    </select>
+    <div class="form-hint" data-t="hintAccount"></div>
+  </div>
+
+  <!-- Fallback: manual Account ID input -->
+  <div class="form-group" id="accountManual" style="display:none">
+    <label class="form-label" data-t="labelAccount"></label>
+    <input type="text" class="form-input" id="inpAccountManual" value="${esc(state.accountId)}"
+           placeholder="abcdef1234567890abcdef1234567890" autocomplete="off" spellcheck="false"
+           style="direction:ltr;text-align:left">
+    <div class="form-hint" data-t="hintAccount"></div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" id="btnValidate" onclick="handleValidate()" data-t="validate"></button>
+    <button class="btn btn-secondary" onclick="goStep(1)" data-t="back"></button>
+  </div>
+</div>`;
+}
+
+async function handleValidate() {
+  const tokenEl = document.getElementById('inpToken');
+  const alertEl = document.getElementById('credAlert');
+  const btnEl = document.getElementById('btnValidate');
+
+  state.apiToken = tokenEl.value.trim();
+
+  if (!state.apiToken) {
+    alertEl.innerHTML = alert('error', lang === 'fa' ? 'لطفاً API Token را وارد کنید' : 'Please enter your API Token');
+    return;
+  }
+
+  // Check if we already have an account ID (from manual input or previous selection)
+  const manualEl = document.getElementById('inpAccountManual');
+  if (manualEl && manualEl.value.trim()) {
+    state.accountId = manualEl.value.trim();
+  }
+
+  // If we already have an account ID, just validate
+  if (state.accountId) {
+    btnEl.disabled = true;
+    btnEl.innerHTML = `<div class="spinner"></div> ${t('validating')}`;
+    alertEl.innerHTML = '';
+
+    const result = await validateCredentials();
+    btnEl.disabled = false;
+    btnEl.textContent = t('validate');
+
+    if (result.ok) {
+      alertEl.innerHTML = alert('success', `${t('validSuccess')} ${state.accountName ? '(' + esc(state.accountName) + ')' : ''}`);
+      setTimeout(() => goStep(3), 800);
+    } else {
+      alertEl.innerHTML = alert('error', result.msg);
+    }
+    return;
+  }
+
+  // No account ID yet — fetch accounts from API
+  btnEl.disabled = true;
+  btnEl.innerHTML = `<div class="spinner"></div> ${lang === 'fa' ? 'در حال دریافت اکانت‌ها...' : 'Fetching accounts...'}`;
+  alertEl.innerHTML = '';
+
+  const acctsResult = await fetchAccounts(state.apiToken);
+
+  if (!acctsResult.ok) {
+    btnEl.disabled = false;
+    btnEl.textContent = t('validate');
+    alertEl.innerHTML = alert('error', acctsResult.msg);
+    return;
+  }
+
+  const accounts = acctsResult.accounts;
+  if (!accounts || accounts.length === 0) {
+    btnEl.disabled = false;
+    btnEl.textContent = t('validate');
+    alertEl.innerHTML = alert('error', lang === 'fa' ? 'هیچ اکانتی یافت نشد' : 'No accounts found');
+    return;
+  }
+
+  // If only one account, auto-select
+  if (accounts.length === 1) {
+    state.accountId = accounts[0].id;
+    state.accountName = accounts[0].name || '';
+    alertEl.innerHTML = alert('success', `${t('validSuccess')} (${esc(state.accountName)})`);
+    btnEl.disabled = false;
+    btnEl.textContent = t('validate');
+    setTimeout(() => goStep(3), 800);
+    return;
+  }
+
+  // Multiple accounts — show dropdown
+  const acctGroup = document.getElementById('accountGroup');
+  const acctSelect = document.getElementById('inpAccount');
+  acctGroup.style.display = 'block';
+  
+  let options = `<option value="">${lang === 'fa' ? 'یک اکانت انتخاب کنید' : 'Select an account'}</option>`;
+  for (const acct of accounts) {
+    options += `<option value="${esc(acct.id)}">${esc(acct.name || acct.id)}</option>`;
+  }
+  acctSelect.innerHTML = options;
+
+  btnEl.disabled = false;
+  btnEl.textContent = t('validate');
+  alertEl.innerHTML = alert('info', lang === 'fa' 
+    ? `چند اکانت یافت شد. لطفاً یکی را انتخاب کنید و دوباره اعتبارسنجی کنید.`
+    : `Multiple accounts found. Please select one and validate again.`);
+}
+
+function onAccountSelect() {
+  const sel = document.getElementById('inpAccount');
+  if (sel && sel.value) {
+    state.accountId = sel.value;
+    const opt = sel.options[sel.selectedIndex];
+    state.accountName = opt ? opt.textContent : '';
+  }
+}
+
+function rerollWorkerName() {
+  state.workerName = generateRandomWorkerName();
+  const inp = document.getElementById('inpWorker');
+  if (inp) {
+    inp.value = state.workerName;
+    inp.placeholder = state.workerName;
+  }
+}
+
+// ── Configuration ──
+function renderConfig() {
+  const isUpdate = state.isUpdate;
+  
+  return `
+<div class="card step-panel">
+  <div class="card-title">${isUpdate ? t('updateTitle') : t('configTitle')}</div>
+  <div class="card-subtitle">${isUpdate ? t('updateSub') : t('configSub')}</div>
+
+  <div class="config-grid">
+    <div class="form-group">
+      <label class="form-label" data-t="labelWorker"></label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="form-input" id="inpWorker" value="${esc(state.workerName)}"
+               placeholder="${esc(state.workerName)}" spellcheck="false" style="direction:ltr;text-align:left;flex:1">
+        <button type="button" class="btn btn-secondary" onclick="rerollWorkerName()" title="${t('generateNewName')}" style="padding:0 14px;font-size:1.1rem;min-height:42px;flex-shrink:0">🎲</button>
+      </div>
+      <div class="form-hint" data-t="hintWorker"></div>
+    </div>
+    
+    ${!isUpdate ? `
+    <div class="form-group">
+      <label class="form-label" data-t="labelDB"></label>
+      <input type="text" class="form-input" id="inpDB" value="${esc(state.dbName)}"
+             placeholder="iot_db" spellcheck="false" style="direction:ltr;text-align:left">
+      <div class="form-hint" data-t="hintDB"></div>
+    </div>` : ''}
+  </div>
+
+  ${!isUpdate ? `
+  <div class="form-group">
+    <label class="form-label" data-t="labelPassword"></label>
+    <input type="password" class="form-input" id="inpPassword" value="${esc(state.password)}"
+           placeholder="admin" autocomplete="off" spellcheck="false">
+    <div class="form-hint" data-t="hintPassword"></div>
+  </div>
+
+  <details style="margin-bottom:20px">
+    <summary style="cursor:pointer;color:var(--cyan);font-size:.9rem;font-weight:600;padding:8px 0" data-t="advSettings"></summary>
+    <div style="margin-top:12px">
+      <div class="form-group">
+        <label class="form-label" data-t="labelApiRoute"></label>
+        <input type="text" class="form-input" id="inpRoute" value="${esc(state.apiRoute)}"
+               placeholder="sync" spellcheck="false" style="direction:ltr;text-align:left">
+        <div class="form-hint" data-t="hintApiRoute"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="labelTgToken"></label>
+        <input type="text" class="form-input" id="inpTgToken" value="${esc(state.tgToken)}"
+               placeholder="123456:ABC-DEF..." spellcheck="false" style="direction:ltr;text-align:left">
+        <div class="form-hint" data-t="hintTgToken"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" data-t="labelTgAdmin"></label>
+        <input type="text" class="form-input" id="inpTgAdmin" value="${esc(state.tgAdminId)}"
+               placeholder="123456789" spellcheck="false" style="direction:ltr;text-align:left">
+        <div class="form-hint" data-t="hintTgAdmin"></div>
+      </div>
+    </div>
+  </details>` : ''}
+
+  <div id="configAlert"></div>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="handleConfigNext()" data-t="next"></button>
+    <button class="btn btn-secondary" onclick="goStep(2)" data-t="back"></button>
+  </div>
+</div>`;
+}
+
+function handleConfigNext() {
+  const workerName = document.getElementById('inpWorker').value.trim();
+  const alertEl = document.getElementById('configAlert');
+
+  if (!/^[a-z][a-z0-9-]{2,}$/.test(workerName)) {
+    alertEl.innerHTML = alert('error', t('errWorkerName'));
+    return;
+  }
+
+  state.workerName = workerName;
+
+  // Read fields safely if rendered
+  const dbInput = document.getElementById('inpDB');
+  if (dbInput) state.dbName = dbInput.value.trim() || 'iot_db';
+
+  const passInput = document.getElementById('inpPassword');
+  if (passInput) state.password = passInput.value;
+
+  const routeInput = document.getElementById('inpRoute');
+  if (routeInput) state.apiRoute = routeInput.value.trim() || 'sync';
+
+  const tgTokenInput = document.getElementById('inpTgToken');
+  if (tgTokenInput) state.tgToken = tgTokenInput.value.trim();
+
+  const tgAdminInput = document.getElementById('inpTgAdmin');
+  if (tgAdminInput) state.tgAdminId = tgAdminInput.value.trim();
+
+  goStep(4);
+}
+
+// ── Deployment ──
+function renderDeploy() {
+  return `
+<div class="card step-panel">
+  <div class="card-title" data-t="deployTitle"></div>
+  <div class="card-subtitle" data-t="deploySub"></div>
+
+  <ul class="progress-list" id="deployProgress">
+    <li class="progress-item waiting" id="prog-fetch">
+      <span class="progress-icon">○</span>
+      <div>
+        <div class="progress-text" data-t="stepFetch"></div>
+        <div class="progress-detail" data-t="fetchDetail"></div>
+      </div>
+    </li>
+    <li class="progress-item waiting" id="prog-d1">
+      <span class="progress-icon">○</span>
+      <div>
+        <div class="progress-text" data-t="stepD1"></div>
+        <div class="progress-detail" data-t="d1Detail"></div>
+      </div>
+    </li>
+    <li class="progress-item waiting" id="prog-deploy">
+      <span class="progress-icon">○</span>
+      <div>
+        <div class="progress-text" data-t="stepDeploy"></div>
+        <div class="progress-detail" data-t="deployDetail"></div>
+      </div>
+    </li>
+    <li class="progress-item waiting" id="prog-verify">
+      <span class="progress-icon">○</span>
+      <div>
+        <div class="progress-text" data-t="stepVerify"></div>
+        <div class="progress-detail" data-t="verifyDetail"></div>
+      </div>
+    </li>
+  </ul>
+
+  <div id="deployAlert"></div>
+
+  <div class="btn-group" id="deployButtons" style="display:none">
+    <button class="btn btn-secondary" onclick="goStep(3)" data-t="back"></button>
+  </div>
+</div>`;
+}
+
+function setProgress(id, status, detail) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `progress-item ${status}`;
+  const icon = el.querySelector('.progress-icon');
+  if (status === 'active') icon.innerHTML = '<div class="spinner"></div>';
+  else if (status === 'done') icon.textContent = '✓';
+  else if (status === 'error') icon.textContent = '✗';
+  else icon.textContent = '○';
+  if (detail) {
+    let detailEl = el.querySelector('.progress-detail');
+    if (detailEl) detailEl.textContent = detail;
+  }
+}
+
+async function runDeployment() {
+  const alertEl = () => document.getElementById('deployAlert');
+  const showBtns = () => { document.getElementById('deployButtons').style.display = 'flex'; };
+
+  // Step 1: Fetch code
+  setProgress('prog-fetch', 'active');
+  const fetchResult = await fetchWorkerCode();
+  if (!fetchResult.ok) {
+    setProgress('prog-fetch', 'error');
+    alertEl().innerHTML = alert('error', fetchResult.msg || t('errFetch'));
+    showBtns();
+    return;
+  }
+  const verLabel = state.workerVersion ? `v${state.workerVersion}` : fetchResult.source;
+  setProgress('prog-fetch', 'done', verLabel);
+
+  // Step 2: D1 Database handling
+  setProgress('prog-d1', 'active');
+  
+  if (state.isUpdate) {
+    // UPDATE MODE: Fetch existing D1 binding from Worker configuration
+    setProgress('prog-d1', 'active', t('stepFetchD1Binding'));
+    const d1Result = await fetchExistingWorkerBindings();
+    if (!d1Result.ok) {
+      setProgress('prog-d1', 'error');
+      alertEl().innerHTML = alert('error', `Could not find existing D1 Database for '${state.workerName}'. ${d1Result.msg || ''}`);
+      showBtns();
+      return;
+    }
+    setProgress('prog-d1', 'done', `Reusing DB ID: ${state.dbId}`);
+  } else {
+    // FRESH INSTALL MODE: Create/Find D1 Database
+    const d1Result = await createD1Database();
+    if (!d1Result.ok) {
+      setProgress('prog-d1', 'error');
+      alertEl().innerHTML = alert('error', `${t('errD1')}: ${d1Result.msg}`);
+      showBtns();
+      return;
+    }
+    const d1Msg = d1Result.existed ? t('stepD1Exists') : state.dbId;
+    setProgress('prog-d1', 'done', d1Msg);
+  }
+
+  // Step 3: Deploy Worker
+  setProgress('prog-deploy', 'active');
+  const deployResult = await deployWorker();
+  if (!deployResult.ok) {
+    setProgress('prog-deploy', 'error');
+    alertEl().innerHTML = alert('error', deployResult.msg);
+    showBtns();
+    return;
+  }
+  setProgress('prog-deploy', 'done', deployResult.via || '');
+
+  // Enable workers.dev route and construct URL
+  const urlResult = await enableWorkersDevUrl();
+  if (!urlResult.ok) {
+    if (urlResult.noSubdomain) {
+      setProgress('prog-verify', 'error');
+      alertEl().innerHTML = alert('warn', urlResult.msg);
+      showBtns();
+      return;
+    }
+  }
+
+  // Step 4: Verification
+  setProgress('prog-verify', 'active');
+  const waitMs = 5000;
+  await new Promise(resolve => setTimeout(resolve, waitMs));
+  
+  const verifyResult = await verifyDeployment();
+  const bindingCheck = await verifyBindings();
+  const bindingInfo = bindingCheck.ok ? 'D1 ✓' : '';
+  const urlInfo = state.deployUrl || 'No URL';
+  setProgress('prog-verify', 'done', `${urlInfo}${bindingInfo ? ' | ' + bindingInfo : ''}`);
+
+  saveCurrentPanel();
+
+  // Done!
+  setTimeout(() => goStep(5), 600);
+}
+
+// ── Success ──
+function renderSuccess() {
+  const pass = state.password || 'admin';
+  const isDefaultPass = !state.password || state.password === 'admin';
+  const hasUrl = !!state.deployUrl;
+  const panelUrl = hasUrl ? `${state.deployUrl}/${state.apiRoute}/dash` : '';
+
+  const titleKey = state.isUpdate ? 'updateSuccessTitle' : 'successTitle';
+  const subKey = state.isUpdate ? 'updateSuccessSub' : 'successSub';
+
+  let urlSection;
+  if (hasUrl) {
+    urlSection = `
+  <div class="result-box">
+    <div class="result-label" data-t="labelUrl"></div>
+    <div class="result-value">
+      <a href="${esc(panelUrl)}" target="_blank" rel="noopener" style="color:var(--cyan);text-decoration:none">${esc(panelUrl)}</a>
+      <button class="copy-btn" onclick="copyText(this,'${esc(panelUrl)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
+    </div>
+  </div>`;
+  } else {
+    urlSection = `
+  <div class="alert alert-error">
+    <span class="alert-icon">❌</span>
+    <span data-t="warnNoSubdomain"></span>
+  </div>`;
+  }
+
+  // Only show password card, security warning, and quick start guide during FRESH INSTALLS
+  const securityWarning = (!state.isUpdate && isDefaultPass) ? `
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠️</span>
+    <span data-t="securityWarning"></span>
+  </div>` : '';
+
+  const passSection = (!state.isUpdate) ? `
+  <div class="result-box">
+    <div class="result-label" data-t="labelDefaultPass"></div>
+    <div class="result-value" style="color:var(--red)">
+      <span>${esc(pass)}</span>
+      <button class="copy-btn" onclick="copyText(this,'${esc(pass)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
+    </div>
+  </div>` : '';
+
+  const steps = (!state.isUpdate && isDefaultPass) ? t('quickStartSteps') : [];
+  const stepsSection = steps.length ? `
+  <div class="divider"></div>
+  <div style="font-weight:600;margin-bottom:10px;font-size:.95rem" data-t="quickStart"></div>
+  <ol style="padding-${lang === 'fa' ? 'right' : 'left'}:20px;color:var(--text2);font-size:.9rem;margin-bottom:20px">
+    ${steps.map(s => `<li style="margin-bottom:6px">${esc(s)}</li>`).join('')}
+  </ol>` : '';
+
+  return `
+<div class="card step-panel">
+  <div class="card-title" data-t="${titleKey}"></div>
+  <div class="card-subtitle" data-t="${subKey}"></div>
+
+  ${securityWarning}
+
+  ${urlSection}
+
+  <div class="result-box">
+    <div class="result-label" data-t="labelWorkerName"></div>
+    <div class="result-value">
+      <span>${esc(state.workerName)}</span>
+      <button class="copy-btn" onclick="copyText(this,'${esc(state.workerName)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
+    </div>
+  </div>
+
+  ${passSection}
+
+  ${stepsSection}
+
+  <div class="btn-group">
+    ${hasUrl ? `<a href="${esc(panelUrl)}" target="_blank" rel="noopener" class="btn btn-primary" data-t="openPanel">${t('openPanel')}</a>` : ''}
+    <button class="btn btn-secondary" onclick="resetAll()" data-t="newInstall">${t('newInstall')}</button>
+  </div>
+</div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════════════
+function esc(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function alert(type, msg) {
+  const icons = { info: 'ℹ️', success: '✅', error: '❌', warn: '⚠️' };
+  const html = esc(msg).replace(/\n/g, '<br>');
+  return `<div class="alert alert-${type}"><span class="alert-icon">${icons[type] || ''}</span><span>${html}</span></div>`;
+}
+
+function goStep(n) {
+  currentStep = n;
+  renderStep();
+}
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = t('copied');
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = orig;
+      btn.classList.remove('copied');
+    }, 1500);
+  });
+}
+
+function resetAll() {
+  state.isUpdate = false;
+  state.apiToken = '';
+  state.accountId = '';
+  state.accountName = '';
+  state.workerName = generateRandomWorkerName();
+  state.dbName = 'iot_db';
+  state.dbId = '';
+  state.password = '';
+  state.tgToken = '';
+  state.tgAdminId = '';
+  state.apiRoute = 'sync';
+  state.workerCode = '';
+  state.workerVersion = '';
+  state.deployUrl = '';
+  // proxyUrl is preserved in localStorage — don't clear it
+  goStep(0);
+}
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+renderStep();
+</script>
+</html>
