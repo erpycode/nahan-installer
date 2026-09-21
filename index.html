@@ -424,6 +424,11 @@ const T = {
     fa: 'خالی بگذارید تا از پیش‌فرض (admin) استفاده شود. بعداً قابل تغییر است',
     en: 'Leave empty to use default (admin). Can be changed later'
   },
+  labelUpdatePassword: { fa: 'رمز عبور جدید پنل (اختیاری)', en: 'New Panel Password (optional)' },
+  hintUpdatePassword: {
+    fa: 'خالی بگذارید تا رمز عبور فعلی بدون تغییر بماند',
+    en: 'Leave empty to keep current password'
+  },
   labelTgToken: { fa: 'توکن ربات تلگرام (اختیاری)', en: 'Telegram Bot Token (optional)' },
   hintTgToken: { fa: 'برای اعلان‌ها و مدیریت از طریق تلگرام', en: 'For notifications and Telegram management' },
   labelTgAdmin: { fa: 'شناسه ادمین تلگرام (اختیاری)', en: 'Telegram Admin ID (optional)' },
@@ -438,6 +443,7 @@ const T = {
   deploySub: { fa: 'لطفاً صبر کنید تا فرآیند تکمیل شود', en: 'Please wait while the process completes' },
   stepFetch: { fa: 'دریافت آخرین نسخه کد Worker', en: 'Fetching latest Worker code' },
   stepD1: { fa: 'ایجاد پایگاه داده D1', en: 'Creating D1 database' },
+  stepD1Init: { fa: 'پیکربندی پایگاه داده D1 و تزریق رمز عبور', en: 'Configuring D1 database & injecting password' },
   stepD1Exists: { fa: 'پایگاه داده D1 از قبل وجود دارد — دریافت شناسه', en: 'D1 database already exists — fetching ID' },
   stepDeploy: { fa: 'استقرار Worker روی Cloudflare', en: 'Deploying Worker to Cloudflare' },
   stepEnableUrl: { fa: 'فعال‌سازی آدرس workers.dev', en: 'Enabling workers.dev URL' },
@@ -469,6 +475,7 @@ const T = {
   labelDBName: { fa: 'پایگاه داده D1', en: 'D1 Database' },
   labelDBId: { fa: 'شناسه پایگاه داده', en: 'Database ID' },
   labelDefaultPass: { fa: 'رمز عبور پیش‌فرض', en: 'Default Password' },
+  labelPanelPass: { fa: 'رمز عبور پنل', en: 'Panel Password' },
   securityWarning: {
     fa: '⚠️ بلافاصله پس از ورود، رمز عبور پیش‌فرض را از تب System تغییر دهید!',
     en: '⚠️ Immediately change the default password from the System tab after login!'
@@ -756,7 +763,7 @@ async function validateCredentials() {
 
 async function fetchWorkerCode() {
   const proxy = state.proxyUrl;
-  const filesToTry = ['_worker.encode.js', '_worker.encoded.js', '_worker.js'];
+  const filesToTry = ['_worker.js', '_worker.encode.js', '_worker.encoded.js'];
 
   const errors = [];
 
@@ -860,6 +867,144 @@ async function findExistingD1() {
   return { ok: false, msg: r.errors?.[0]?.message || t('errD1') };
 }
 
+async function initD1Database() {
+  if (!state.accountId || !state.dbId) {
+    return { ok: false, msg: 'Missing accountId or dbId' };
+  }
+
+  try {
+    console.log(`[D1] Initializing kv_store in D1 database: ${state.dbId}`);
+
+    // 1. Ensure kv_store table exists in D1 database
+    const createRes = await cfFetch(`/accounts/${state.accountId}/d1/database/${state.dbId}/query`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sql: 'CREATE TABLE IF NOT EXISTS kv_store (key TEXT PRIMARY KEY, value TEXT);'
+      })
+    });
+
+    if (!createRes.success) {
+      console.warn('[D1] CREATE TABLE failed:', JSON.stringify(createRes.errors));
+      return { ok: false, msg: createRes.errors?.[0]?.message || 'Failed to create kv_store table' };
+    }
+
+    // 2. Query existing sys_config to preserve any prior settings/users (e.g. on update)
+    let existingConfig = {};
+    const selectRes = await cfFetch(`/accounts/${state.accountId}/d1/database/${state.dbId}/query`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sql: 'SELECT value FROM kv_store WHERE key = ?;',
+        params: ['sys_config']
+      })
+    });
+
+    if (selectRes.success && selectRes.result?.[0]?.results?.[0]?.value) {
+      try {
+        existingConfig = JSON.parse(selectRes.result[0].results[0].value) || {};
+        console.log('[D1] Found existing sys_config in D1, preserving other settings');
+      } catch (e) {
+        console.warn('[D1] Error parsing existing sys_config JSON:', e);
+        existingConfig = {};
+      }
+    }
+
+    // 3. Build merged configuration matching Nahan SYSTEM_DEFAULTS
+    const config = {
+      name: "",
+      apiRoute: "sync",
+      maintenanceHost: "https://www.ubuntu.com, https://www.docker.com",
+      backupRelay: "",
+      customRelay: "",
+      masterKey: "admin",
+      metricNode: "time.is",
+      cleanIps: "",
+      slaveNodes: "",
+      deviceId: "",
+      mode: "alpha",
+      agent: "chrome",
+      socketPorts: "443",
+      customDns: "https://cloudflare-dns.com/dns-query",
+      resolveIp: "1.1.1.1",
+      cascade: "",
+      enableOpt1: false,
+      enableOpt2: false,
+      tgToken: "",
+      tgChatId: "",
+      tgAdminId: "",
+      cfAccountId: "",
+      cfApiToken: "",
+      cfWorkerName: "",
+      isPaused: false,
+      silentAlerts: false,
+      githubRepo: "itsyebekhe/nahan",
+      nameStrategy: "default",
+      namePrefix: "Core",
+      tgBotLang: "fa",
+      users: [],
+      subUserAgent: "",
+      customPanelUrl: "",
+      limitTotalReq: 0,
+      expiryMs: 0,
+      linkedPanels: [],
+      hubPanelUrl: "",
+      syncApiKey: "",
+      panelApiKeys: [],
+      nat64Prefix: "",
+      enableDirectConfigs: false,
+      customRouting: "",
+      upstreamUri: "",
+      autoUpdate: false,
+      autoUpdateFormat: "encoded",
+      fakeConfigs: [
+        { name: "📊 {usage}", enabled: true },
+        { name: "📅 {expiry}", enabled: true }
+      ],
+      maintenanceMode: false,
+      allowRemoteDeploy: false,
+      autoPruneRelays: true,
+      ...existingConfig
+    };
+
+    // Apply installer state
+    if (state.password) {
+      config.masterKey = state.password;
+    } else if (!state.isUpdate && !config.masterKey) {
+      config.masterKey = 'admin';
+    }
+
+    if (state.workerName) config.cfWorkerName = state.workerName;
+    if (state.accountId) config.cfAccountId = state.accountId;
+    if (state.apiToken) config.cfApiToken = state.apiToken;
+    if (state.isUpdate) {
+      if (state.apiRoute && state.apiRoute !== 'sync') config.apiRoute = state.apiRoute;
+    } else if (state.apiRoute) {
+      config.apiRoute = state.apiRoute;
+    }
+    if (state.tgToken) config.tgToken = state.tgToken;
+    if (state.tgAdminId) config.tgAdminId = state.tgAdminId;
+
+    // 4. Upsert sys_config into kv_store
+    const insertRes = await cfFetch(`/accounts/${state.accountId}/d1/database/${state.dbId}/query`, {
+      method: 'POST',
+      body: JSON.stringify({
+        sql: 'INSERT INTO kv_store (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value;',
+        params: ['sys_config', JSON.stringify(config)]
+      })
+    });
+
+    if (insertRes.success) {
+      console.log(`[D1] ✓ Successfully injected sys_config with password into database: ${state.dbId}`);
+      return { ok: true };
+    } else {
+      console.warn('[D1] Insert failed:', JSON.stringify(insertRes.errors));
+      return { ok: false, msg: insertRes.errors?.[0]?.message || 'Failed to upsert sys_config' };
+    }
+  } catch (e) {
+    console.error('[D1] initD1Database exception:', e);
+    return { ok: false, msg: e.message };
+  }
+}
+
 async function deployWorker() {
   // Deploy using stable multipart PUT API.
   // This creates the Worker AND the service resource in one call,
@@ -930,34 +1075,34 @@ async function deployWorkerStable() {
 
   // Inject custom password
   if (state.password && state.password !== 'admin') {
-    code = code.replace(/masterKey\s*[=:]\s*['"]admin['"]/g, `masterKey: '${state.password}'`);
-    code = code.replace(/MASTER_KEY\s*=\s*['"]admin['"]/g, `MASTER_KEY = '${state.password}'`);
-    code = code.replace(/['"]admin['"]\s*\/\/\s*default\s*password/gi, `'${state.password}' // custom password`);
-    code = code.replace(/password\s*[=:]\s*['"]admin['"]/g, `password: '${state.password}'`);
+    code = code.replace(/masterKey\s*[=:]\s*['"]admin['"]/g, `masterKey: ${JSON.stringify(state.password)}`);
+    code = code.replace(/MASTER_KEY\s*=\s*['"]admin['"]/g, `MASTER_KEY = ${JSON.stringify(state.password)}`);
+    code = code.replace(/['"]admin['"]\s*\/\/\s*default\s*password/gi, `${JSON.stringify(state.password)} // custom password`);
+    code = code.replace(/password\s*[=:]\s*['"]admin['"]/g, `password: ${JSON.stringify(state.password)}`);
     console.log('[Stable] Injected custom password');
   }
 
   // Inject worker name, account ID, and API token into SYSTEM_DEFAULTS
   if (state.workerName) {
-    code = code.replace(/cfWorkerName\s*:\s*['"][^'"]*['"]/g, `cfWorkerName: "${state.workerName}"`);
+    code = code.replace(/cfWorkerName\s*:\s*['"][^'"]*['"]/g, `cfWorkerName: ${JSON.stringify(state.workerName)}`);
   }
   if (state.accountId) {
-    code = code.replace(/cfAccountId\s*:\s*['"][^'"]*['"]/g, `cfAccountId: "${state.accountId}"`);
+    code = code.replace(/cfAccountId\s*:\s*['"][^'"]*['"]/g, `cfAccountId: ${JSON.stringify(state.accountId)}`);
   }
   if (state.apiToken) {
-    code = code.replace(/cfApiToken\s*:\s*['"][^'"]*['"]/g, `cfApiToken: "${state.apiToken}"`);
+    code = code.replace(/cfApiToken\s*:\s*['"][^'"]*['"]/g, `cfApiToken: ${JSON.stringify(state.apiToken)}`);
   }
   // Inject API route
   if (state.apiRoute && state.apiRoute !== 'sync') {
-    code = code.replace(/apiRoute\s*:\s*['"][^'"]*['"]/g, `apiRoute: "${state.apiRoute}"`);
+    code = code.replace(/apiRoute\s*:\s*['"][^'"]*['"]/g, `apiRoute: ${JSON.stringify(state.apiRoute)}`);
   }
   // Inject Telegram bot token
   if (state.tgToken) {
-    code = code.replace(/tgToken\s*:\s*['"][^'"]*['"]/g, `tgToken: "${state.tgToken}"`);
+    code = code.replace(/tgToken\s*:\s*['"][^'"]*['"]/g, `tgToken: ${JSON.stringify(state.tgToken)}`);
   }
   // Inject Telegram admin ID
   if (state.tgAdminId) {
-    code = code.replace(/tgAdminId\s*:\s*['"][^'"]*['"]/g, `tgAdminId: "${state.tgAdminId}"`);
+    code = code.replace(/tgAdminId\s*:\s*['"][^'"]*['"]/g, `tgAdminId: ${JSON.stringify(state.tgAdminId)}`);
   }
   console.log('[Stable] Injected cfWorkerName, cfAccountId, cfApiToken, apiRoute, tgToken, tgAdminId');
 
@@ -1174,6 +1319,7 @@ function quickUpdatePanel(id) {
   state.dbId = target.dbId || '';
   state.apiRoute = target.apiRoute || 'sync';
   state.deployUrl = target.deployUrl || '';
+  state.password = '';
 
   // Jump straight to connectivity check & credential validation
   goStep(1);
@@ -1284,6 +1430,7 @@ ${savedPanels.map(p => {
 // Add this helper function below renderWelcome()
 function startFlow(isUpdateMode) {
   state.isUpdate = isUpdateMode;
+  state.password = '';
   goStep(1);
 }
 
@@ -1312,7 +1459,7 @@ function isAllowedPath(path) {
   if (path === '/accounts' || path === '/accounts/') return true;
   if (!path.startsWith('/accounts/')) return false;
   const patterns = [
-    /^\\/accounts\\/[^/]+\\/d1\\/database/,                // D1 create, list, delete
+    /^\\/accounts\\/[^/]+\\/d1\\/database/,                // D1 create, list, query, delete
     /^\\/accounts\\/[^/]+\\/workers\\/scripts\\//,           // Worker upload (PUT), settings, delete
     /^\\/accounts\\/[^/]+\\/workers\\/scripts\\/[^/]+\\/deployments$/, // Worker deployments
     /^\\/accounts\\/[^/]+\\/workers\\/workers(\\/|$)/,       // Worker create, list, get, versions (Beta API)
@@ -1834,12 +1981,11 @@ function renderConfig() {
     </div>` : ''}
   </div>
 
-  ${!isUpdate ? `
   <div class="form-group">
-    <label class="form-label" data-t="labelPassword"></label>
+    <label class="form-label" data-t="${isUpdate ? 'labelUpdatePassword' : 'labelPassword'}"></label>
     <input type="password" class="form-input" id="inpPassword" value="${esc(state.password)}"
-           placeholder="admin" autocomplete="off" spellcheck="false">
-    <div class="form-hint" data-t="hintPassword"></div>
+           placeholder="${isUpdate ? '••••••••' : 'admin'}" autocomplete="off" spellcheck="false">
+    <div class="form-hint" data-t="${isUpdate ? 'hintUpdatePassword' : 'hintPassword'}"></div>
   </div>
 
   <details style="margin-bottom:20px">
@@ -1864,7 +2010,7 @@ function renderConfig() {
         <div class="form-hint" data-t="hintTgAdmin"></div>
       </div>
     </div>
-  </details>` : ''}
+  </details>
 
   <div id="configAlert"></div>
 
@@ -1891,7 +2037,7 @@ function handleConfigNext() {
   if (dbInput) state.dbName = dbInput.value.trim() || 'iot_db';
 
   const passInput = document.getElementById('inpPassword');
-  if (passInput) state.password = passInput.value;
+  if (passInput) state.password = passInput.value.trim();
 
   const routeInput = document.getElementById('inpRoute');
   if (routeInput) state.apiRoute = routeInput.value.trim() || 'sync';
@@ -1995,7 +2141,7 @@ async function runDeployment() {
       showBtns();
       return;
     }
-    setProgress('prog-d1', 'done', `Reusing DB ID: ${state.dbId}`);
+    setProgress('prog-d1', 'active', `Found DB ID: ${state.dbId}`);
   } else {
     // FRESH INSTALL MODE: Create/Find D1 Database
     const d1Result = await createD1Database();
@@ -2006,8 +2152,16 @@ async function runDeployment() {
       return;
     }
     const d1Msg = d1Result.existed ? t('stepD1Exists') : state.dbId;
-    setProgress('prog-d1', 'done', d1Msg);
+    setProgress('prog-d1', 'active', d1Msg);
   }
+
+  // Initialize D1 kv_store table and inject sys_config (password, settings)
+  setProgress('prog-d1', 'active', t('stepD1Init'));
+  const initDbResult = await initD1Database();
+  if (!initDbResult.ok) {
+    console.warn('[Deploy] Warning: D1 initialization issue:', initDbResult.msg);
+  }
+  setProgress('prog-d1', 'done', state.isUpdate ? `Reusing DB ID: ${state.dbId}` : (state.dbId || 'D1 ✓'));
 
   // Step 3: Deploy Worker
   setProgress('prog-deploy', 'active');
@@ -2083,14 +2237,28 @@ function renderSuccess() {
     <span data-t="securityWarning"></span>
   </div>` : '';
 
-  const passSection = (!state.isUpdate) ? `
+  let passSection = '';
+  if (!state.isUpdate) {
+    const passLabelKey = isDefaultPass ? 'labelDefaultPass' : 'labelPanelPass';
+    const passColor = isDefaultPass ? 'color:var(--red)' : 'color:var(--cyan)';
+    passSection = `
   <div class="result-box">
-    <div class="result-label" data-t="labelDefaultPass"></div>
-    <div class="result-value" style="color:var(--red)">
+    <div class="result-label" data-t="${passLabelKey}">${t(passLabelKey)}</div>
+    <div class="result-value" style="${passColor}">
       <span>${esc(pass)}</span>
       <button class="copy-btn" onclick="copyText(this,'${esc(pass)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
     </div>
-  </div>` : '';
+  </div>`;
+  } else if (state.password) {
+    passSection = `
+  <div class="result-box">
+    <div class="result-label" data-t="labelPanelPass">${t('labelPanelPass')}</div>
+    <div class="result-value" style="color:var(--cyan)">
+      <span>${esc(state.password)}</span>
+      <button class="copy-btn" onclick="copyText(this,'${esc(state.password)}')">${lang === 'fa' ? 'کپی' : 'Copy'}</button>
+    </div>
+  </div>`;
+  }
 
   const steps = (!state.isUpdate && isDefaultPass) ? t('quickStartSteps') : [];
   const stepsSection = steps.length ? `

@@ -22,7 +22,7 @@ function isAllowedPath(path) {
   if (path === '/accounts' || path === '/accounts/') return true;
   if (!path.startsWith('/accounts/')) return false;
   const patterns = [
-    /^\/accounts\/[^/]+\/d1\/database/,                // D1 create, list, delete
+    /^\/accounts\/[^/]+\/d1\/database/,                // D1 create, list, query, delete
     /^\/accounts\/[^/]+\/workers\/scripts\//,           // Worker upload (PUT), settings, delete
     /^\/accounts\/[^/]+\/workers\/scripts\/[^/]+\/deployments$/, // Worker deployments
     /^\/accounts\/[^/]+\/workers\/workers(\/|$)/,       // Worker create, list, get, versions (Beta API)
