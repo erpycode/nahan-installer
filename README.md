@@ -185,6 +185,17 @@ Contributions are welcome! Feel free to open issues or submit PRs.
 
 **Made with ❤️ by [ErPyCode](https://github.com/erpycode)**
 
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=erpycode%2Fnahan-installer&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=erpycode/nahan-installer&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=erpycode/nahan-installer&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=erpycode/nahan-installer&type=date&legend=top-left" />
+ </picture>
+</a>
+
 [![GitHub](https://img.shields.io/badge/GitHub-erpycode-181717?style=flat&logo=github)](https://github.com/erpycode)
 
 </div>
